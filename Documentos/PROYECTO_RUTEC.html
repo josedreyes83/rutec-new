@@ -1,0 +1,1825 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Sistema RUTEC — Documentación del Proyecto</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    color: #1a1a1a; line-height: 1.55; font-size: 11pt;
+  }
+  h1 { color: #1a237e; border-bottom: 3px solid #1a237e; padding-bottom: 6px; page-break-before: always; }
+  h1:first-of-type { page-break-before: avoid; }
+  h2 { color: #283593; border-bottom: 1px solid #c5cae9; padding-bottom: 4px; margin-top: 1.6em; }
+  h3 { color: #3949ab; margin-top: 1.3em; }
+  h4 { color: #5c6bc0; }
+  p, li { text-align: justify; }
+  code {
+    background: #f5f5f5; padding: 1px 5px; border-radius: 3px;
+    font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 0.9em;
+    color: #c2185b;
+  }
+  pre {
+    background: #263238; color: #eceff1; padding: 12px 14px; border-radius: 6px;
+    overflow-x: auto; font-size: 9pt; line-height: 1.4;
+    page-break-inside: avoid;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  table {
+    border-collapse: collapse; width: 100%; margin: 12px 0;
+    page-break-inside: avoid; font-size: 10pt;
+  }
+  th { background: #1a237e; color: #fff; text-align: left; padding: 8px 10px; }
+  td { border: 1px solid #e0e0e0; padding: 7px 10px; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+  blockquote {
+    border-left: 4px solid #1a237e; background: #e8eaf6;
+    margin: 12px 0; padding: 8px 14px; color: #283593;
+  }
+  hr { border: 0; border-top: 1px dashed #c5cae9; margin: 24px 0; }
+  .mermaid {
+    text-align: center; margin: 18px 0; page-break-inside: avoid;
+    background: #fff; padding: 8px;
+  }
+  .cover {
+    text-align: center; padding: 80px 20px 60px;
+    border-bottom: 4px double #1a237e; margin-bottom: 30px;
+  }
+  .cover h1 {
+    font-size: 30pt; color: #1a237e; border: 0; margin: 0 0 10px;
+    page-break-before: avoid;
+  }
+  .cover .subtitle { font-size: 14pt; color: #555; }
+  .cover .meta { margin-top: 30px; color: #777; font-size: 10pt; }
+  a { color: #1a237e; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <h1>Sistema RUTEC</h1>
+  <div class="subtitle">Descripción del proyecto · Tecnología · Patrones · Arquitectura · Módulos · APIs</div>
+  <div class="meta">
+    Ministerio del Trabajo · República de Colombia<br>
+    Proyecto <code>rutec-new</code>
+  </div>
+</div>
+<h1>Sistema RUTEC — Registro Único de Trabajadores Extranjeros con Contrato</h1>
+<p><strong>Ministerio del Trabajo · República de Colombia</strong></p>
+<p>Documento técnico-funcional con descripción del proyecto, su stack tecnológico, patrones de diseño aplicados, arquitectura, módulos funcionales y catálogo de APIs REST.</p>
+<hr>
+<h2>1. Descripción del proyecto</h2>
+<p>El <strong>Registro Único de Trabajadores Extranjeros con Contrato (RUTEC)</strong> es el sistema institucional del Ministerio del Trabajo de Colombia mediante el cual las empresas empleadoras reportan, mantienen y certifican la información laboral de sus trabajadores extranjeros vinculados mediante contrato. RUTEC opera como módulo hermano de <strong>RUE</strong> (Registro Único de Empresas): RUE provee la identidad jurídica de la empresa empleadora, y RUTEC opera sobre esa identidad para gestionar el ciclo de vida del trabajador extranjero y su contrato.</p>
+<p>El proyecto <code>rutec-new</code> corresponde a la <strong>modernización</strong> de la aplicación legacy en ASP.NET WebForms hacia una arquitectura desacoplada <strong>SPA Angular + API REST .NET</strong>, conservando el modelo de datos relacional histórico y unificando la autenticación con el resto de los módulos del Ministerio (RUE, CEN) a través de la librería compartida <code>Shared.Auth</code>.</p>
+<h3>1.1 Objetivos funcionales</h3>
+<table>
+<thead>
+<tr>
+<th>Objetivo</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Registro del trabajador extranjero</td>
+<td>Capturar identificación (cédula de extranjería / pasaporte), nacionalidad, género, estado civil, fecha de nacimiento, idiomas y niveles educativos.</td>
+</tr>
+<tr>
+<td>Gestión de contratos</td>
+<td>Crear, modificar, finalizar y eliminar contratos vinculados a un trabajador, con vigencias, cargo, ocupaciones laborales (hasta 3) y entidades de seguridad social.</td>
+</tr>
+<tr>
+<td>Generación de constancias</td>
+<td>Emitir certificados PDF que constatan el registro del contrato del trabajador extranjero ante el Ministerio.</td>
+</tr>
+<tr>
+<td>Verificación de calidad</td>
+<td>Permitir que un funcionario verificador asigne aclaraciones a contratos, los marque como verificados, y gestione cargas de trabajo masivas.</td>
+</tr>
+<tr>
+<td>Reportes operativos y gerenciales</td>
+<td>Consultas analíticas por género, nacionalidad, nivel académico, sector económico, zona geográfica, año de nacimiento, cantidad de trabajadores por empresa, etc. Exportación XLSX.</td>
+</tr>
+<tr>
+<td>Administración técnica</td>
+<td>Gestionar usuarios, códigos de referencia, empresas y operaciones masivas de eliminación.</td>
+</tr>
+<tr>
+<td>Catálogos compartidos</td>
+<td>Servir departamentos, municipios, países, ocupaciones laborales (multiniveles), entidades de seguridad social y códigos de referencia.</td>
+</tr>
+</tbody></table>
+<h3>1.2 Alcance del proyecto</h3>
+<p>El sistema cubre cuatro dominios principales:</p>
+<ul>
+<li><strong>Captura y mantenimiento</strong> de trabajadores extranjeros (<code>/trabajadores/*</code>).</li>
+<li><strong>Gestión de contratos</strong> vinculados al trabajador (<code>/trabajadores/{id}/contratos/*</code>).</li>
+<li><strong>Verificación de calidad</strong> y aclaraciones por funcionarios (<code>/calidad/*</code>).</li>
+<li><strong>Reportes</strong> operativos y gerenciales, con exportación a Excel (<code>/reportes/*</code>).</li>
+</ul>
+<p>Adicionalmente expone certificados PDF, administración técnica y catálogos compartidos cacheados.</p>
+<h3>1.3 Roles del sistema</h3>
+<table>
+<thead>
+<tr>
+<th>Rol</th>
+<th>Permisos clave</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Admin</code></td>
+<td>Acceso total: usuarios, códigos de referencia, contratos, eliminaciones masivas, reportes.</td>
+</tr>
+<tr>
+<td><code>Verificador</code></td>
+<td>Asigna aclaraciones, gestiona su carga de contratos en <code>CalidadController</code>.</td>
+</tr>
+<tr>
+<td>Usuarios autenticados</td>
+<td>Captura y consulta de trabajadores y contratos asociados a su organización.</td>
+</tr>
+</tbody></table>
+<p>La pertenencia se valida con <code>[Authorize(Roles = &quot;Admin,Verificador&quot;)]</code> en módulos sensibles.</p>
+<hr>
+<h2>2. Descripción de la tecnología</h2>
+<h3>2.1 Stack consolidado</h3>
+<table>
+<thead>
+<tr>
+<th>Capa</th>
+<th>Tecnología</th>
+<th>Versión / Detalle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Frontend</strong></td>
+<td>Angular</td>
+<td>21.x (<code>@angular/core ^21.2.0</code>)</td>
+</tr>
+<tr>
+<td></td>
+<td>UI</td>
+<td>PrimeNG 21 (tema Aura con preset MinTrabajo)</td>
+</tr>
+<tr>
+<td></td>
+<td>Lenguaje</td>
+<td>TypeScript 5.9</td>
+</tr>
+<tr>
+<td></td>
+<td>Build</td>
+<td><code>@angular/build</code> 21.2 (esbuild + Vite)</td>
+</tr>
+<tr>
+<td><strong>Backend</strong></td>
+<td>.NET</td>
+<td>.NET 10 (<code>net10.0</code>)</td>
+</tr>
+<tr>
+<td></td>
+<td>Web framework</td>
+<td>ASP.NET Core MVC</td>
+</tr>
+<tr>
+<td></td>
+<td>ORM</td>
+<td>Entity Framework Core 10</td>
+</tr>
+<tr>
+<td></td>
+<td>Identity</td>
+<td>ASP.NET Core Identity + JWT (<code>Shared.Auth</code>)</td>
+</tr>
+<tr>
+<td></td>
+<td>Documentación</td>
+<td>Swashbuckle (Swagger)</td>
+</tr>
+<tr>
+<td></td>
+<td>Logging</td>
+<td>Serilog</td>
+</tr>
+<tr>
+<td><strong>Base de datos</strong></td>
+<td>SQL Server</td>
+<td>3 bases: <code>AS_DB_RUE</code> (Identity), <code>RUTEC</code> (negocio), <code>RUE</code> (sólo lectura — datos de organización)</td>
+</tr>
+<tr>
+<td><strong>Almacenamiento</strong></td>
+<td>Azure Blob Storage / disco local</td>
+<td>Vía <code>Shared.BlobStorage</code> (para soportes)</td>
+</tr>
+<tr>
+<td><strong>Mail</strong></td>
+<td>SMTP</td>
+<td>Office 365 (<code>EmailService</code>)</td>
+</tr>
+<tr>
+<td><strong>Reportes</strong></td>
+<td>ClosedXML</td>
+<td>Exportación XLSX por tipo</td>
+</tr>
+<tr>
+<td><strong>PDF</strong></td>
+<td>QuestPDF</td>
+<td>Generación de <strong>constancias</strong> del contrato</td>
+</tr>
+<tr>
+<td><strong>Compartido</strong></td>
+<td><code>Shared.Auth</code></td>
+<td>Identity + JWT + migración de passwords legacy</td>
+</tr>
+<tr>
+<td></td>
+<td><code>Shared.BlobStorage</code></td>
+<td>Abstracción de almacenamiento</td>
+</tr>
+<tr>
+<td></td>
+<td><code>Shared.Common</code></td>
+<td>Utilidades transversales</td>
+</tr>
+</tbody></table>
+<h3>2.2 Particularidad: dos <code>DbContext</code> en simultáneo</h3>
+<p>A diferencia de RUE, RUTEC necesita leer datos de la base RUE para enriquecer información de la organización empleadora. El proyecto inyecta dos contextos:</p>
+<ul>
+<li><code>RutecDbContext</code> — lectura/escritura sobre BD <code>RUTEC</code> (entidades propias del módulo).</li>
+<li><code>RueReadOnlyDbContext</code> — sólo lectura sobre BD <code>RUE</code> (<code>Organizaciones</code>, <code>Representantes</code>, <code>ActividadesEconomicas</code>, <code>CodigosReferencia</code>).</li>
+</ul>
+<p>Esto se ve, por ejemplo, en <code>SharedController.GetDatosOrganizacion(...)</code> que consulta el contexto RUE para complementar el listado de empresas RUTEC con su razón social, actividad económica y representante legal.</p>
+<h3>2.3 Stack de desarrollo</h3>
+<ul>
+<li><strong>IDE</strong>: Visual Studio 2026 / VS Code.</li>
+<li><strong>Runtime local</strong>: backend en <code>http://localhost:5142</code>, frontend en <code>http://localhost:4201</code> (conexión directa al backend, sin proxy).</li>
+<li><strong>Control de versiones</strong>: Git.</li>
+<li><strong>Empaquetado del frontend</strong>: <code>ng build</code> con presupuesto inicial controlado.</li>
+<li><strong>Documentación viva</strong>: Swagger UI en <code>/swagger</code>.</li>
+</ul>
+<h3>2.4 Decisiones tecnológicas relevantes</h3>
+<ul>
+<li><strong>Standalone Components (Angular 21)</strong> con lazy loading por feature.</li>
+<li><strong>Signals + RxJS</strong> para estado y flujos asíncronos.</li>
+<li><strong>JWT con Access + Refresh Token</strong> (15 min / 7 días).</li>
+<li><strong><code>Shared.Auth</code> compartida</strong>: el mismo <code>JwtTokenService</code>, <code>ApplicationUser</code> y <code>PasswordMigrationHasher</code> que usan RUE y CEN.</li>
+<li><strong><code>RueReadOnlyDbContext</code></strong> evita duplicación de catálogos y mantiene una única fuente de verdad sobre los datos de la empresa.</li>
+</ul>
+<hr>
+<h2>3. Descripción de los patrones de diseño</h2>
+<h3>3.1 Patrones arquitectónicos</h3>
+<h4>3.1.1 Clean Architecture (capas con dependencias hacia el dominio)</h4>
+<pre><code>RUTEC.WebApi  →  RUTEC.Application  ←  RUTEC.Infrastructure
+                        ↓
+                  RUTEC.Domain
+</code></pre>
+<h4>3.1.2 Repository / Unit of Work implícito</h4>
+<p><code>RutecDbContext</code> y <code>RueReadOnlyDbContext</code> actúan simultáneamente como repositorios (DbSets) y unidad de trabajo (<code>SaveChangesAsync</code>). Los servicios consumen el contexto por DI scoped, respetando la unidad de trabajo por request HTTP.</p>
+<h4>3.1.3 Bounded Context separado por base de datos</h4>
+<p>Cada <code>DbContext</code> modela un <em>bounded context</em> distinto: <code>RUTEC</code> (dominio propio) y <code>RUE</code> (dominio de organización, sólo lectura). Esto evita acoplamiento transversal y materializa el patrón de <strong>integración por base de datos compartida</strong> pero con dirección de lectura controlada.</p>
+<h4>3.1.4 Dependency Injection (constructor injection)</h4>
+<p>Toda la composición se hace en <code>Program.cs</code> con <code>builder.Services.AddScoped&lt;I..., ...Impl&gt;()</code>. Controllers y servicios reciben dependencias por constructor.</p>
+<h4>3.1.5 CQRS implícito (lectura vs escritura)</h4>
+<p>Los servicios separan consultas (<code>GetAllAsync</code>, <code>GetByIdAsync</code>, <code>GetEmpresasAsync</code>) de mutaciones (<code>CrearAsync</code>, <code>ModificarAsync</code>, <code>EliminarAsync</code>, <code>AsignarVerificadorAsync</code>).</p>
+<h3>3.2 Patrones tácticos / GoF</h3>
+<table>
+<thead>
+<tr>
+<th>Patrón</th>
+<th>Aplicación en el código</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Strategy</strong></td>
+<td><code>JwtTokenService</code> desacopla el algoritmo de firma. <code>PasswordMigrationHasher</code> actúa como estrategia alterna para hashes legacy. La generación de PDF (<code>QuestPDF</code>) encapsula la lógica de renderizado por tipo de constancia.</td>
+</tr>
+<tr>
+<td><strong>Factory Method</strong></td>
+<td>DTOs construidos como <code>record</code> con constructor sintético — factories inmutables (<code>TrabajadorListDto</code>, <code>ContratoDetailDto</code>).</td>
+</tr>
+<tr>
+<td><strong>DTO (Data Transfer Object)</strong></td>
+<td>Cada entrada / salida HTTP cruza fronteras como <code>record</code>.</td>
+</tr>
+<tr>
+<td><strong>Specification</strong></td>
+<td>Los <code>*FiltroDto</code> (paginación + filtros) actúan como especificaciones que el servicio traduce a EF Core <code>Where</code>.</td>
+</tr>
+<tr>
+<td><strong>Decorator (cross-cutting)</strong></td>
+<td><code>[Authorize]</code>, <code>[Authorize(Roles = &quot;Admin&quot;)]</code>, <code>[Authorize(Roles = &quot;Admin,Verificador&quot;)]</code>, <code>[ApiController]</code> decoran el pipeline ASP.NET.</td>
+</tr>
+<tr>
+<td><strong>Template Method</strong></td>
+<td>Controllers heredan de <code>ControllerBase</code>; el framework orquesta binding, validación y ejecución.</td>
+</tr>
+<tr>
+<td><strong>Adapter</strong></td>
+<td><code>RueReadOnlyDbContext</code> adapta el modelo RUE para uso restringido desde RUTEC.</td>
+</tr>
+<tr>
+<td><strong>Observer (caching)</strong></td>
+<td><code>IMemoryCache</code> con <code>SlidingExpiration</code> actúa como observador del TTL para invalidar entradas (departamentos, países, códigos de referencia).</td>
+</tr>
+</tbody></table>
+<h3>3.3 Patrones del frontend (Angular)</h3>
+<table>
+<thead>
+<tr>
+<th>Patrón</th>
+<th>Aplicación</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Interceptor (Chain of Responsibility)</strong></td>
+<td><code>jwtInterceptor</code> añade el <code>Authorization: Bearer ...</code> y maneja refresh transparente ante 401.</td>
+</tr>
+<tr>
+<td><strong>Guard (Strategy)</strong></td>
+<td><code>authMatchGuard</code> y <code>roleGuard([&#39;Admin&#39;, &#39;Verificador&#39;])</code> deciden si la ruta puede activarse.</td>
+</tr>
+<tr>
+<td><strong>Smart vs Presentational Components</strong></td>
+<td>Los <code>features/*</code> son <em>smart</em>; <code>shared/components/*</code> son <em>presentational</em>.</td>
+</tr>
+<tr>
+<td><strong>Observer (RxJS / signals)</strong></td>
+<td>Estado reactivo con <code>signal()</code>, <code>computed()</code> y <code>Observable</code>.</td>
+</tr>
+<tr>
+<td><strong>Lazy Loading</strong></td>
+<td>Cada ruta usa <code>loadComponent: () =&gt; import(...)</code>.</td>
+</tr>
+<tr>
+<td><strong>Service Locator (inject)</strong></td>
+<td><code>inject(RutecApiService)</code> en lugar de constructores explícitos.</td>
+</tr>
+<tr>
+<td><strong>Facade</strong></td>
+<td><code>RutecApiService</code> expone una fachada estable sobre <code>HttpClient</code>.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>4. Descripción de la arquitectura</h2>
+<h3>4.1 Arquitectura general del sistema</h3>
+<div class="mermaid">flowchart LR
+    subgraph Browser["Navegador del usuario"]
+        SPA["Angular SPA<br/>(rutec-app)<br/>:4201"]
+    end
+
+    subgraph Backend["Backend .NET 10"]
+        API["RUTEC.WebApi<br/>:5142"]
+        APP["RUTEC.Application<br/>(DTOs + IServices)"]
+        INFRA["RUTEC.Infrastructure<br/>(EF Core + Impl)"]
+        DOM["RUTEC.Domain<br/>(Entidades)"]
+    end
+
+    subgraph Shared["Librerías compartidas"]
+        AUTH["Shared.Auth<br/>(Identity + JWT)"]
+        BLOB["Shared.BlobStorage"]
+        COMM["Shared.Common"]
+    end
+
+    subgraph Data["Persistencia"]
+        DB1[("AS_DB_RUE<br/>Identity")]
+        DB2[("RUTEC<br/>Dominio propio")]
+        DB3[("RUE<br/>Sólo lectura")]
+        STG[("Azure Blob /<br/>Local FS")]
+    end
+
+    subgraph External["Servicios externos"]
+        SMTP["SMTP<br/>Office 365"]
+    end
+
+    SPA -- "HTTPS JSON + Bearer JWT" --> API
+    API --> APP
+    APP --> DOM
+    INFRA --> APP
+    INFRA --> DOM
+    API --> AUTH
+    API --> BLOB
+    AUTH --> DB1
+    INFRA --> DB2
+    INFRA -. "ReadOnly" .-> DB3
+    BLOB --> STG
+    INFRA --> SMTP
+
+    style SPA fill:#1976d2,color:#fff
+    style API fill:#512bd4,color:#fff
+    style DB1 fill:#ff8f00,color:#fff
+    style DB2 fill:#ff8f00,color:#fff
+    style DB3 fill:#a1887f,color:#fff</div><h3>4.2 Arquitectura por capas (Clean Architecture)</h3>
+<div class="mermaid">flowchart TB
+    subgraph L4["RUTEC.WebApi (capa HTTP)"]
+        C1[AuthController]
+        C2[TrabajadoresController]
+        C3[ContratosController]
+        C4[CertificadosController]
+        C5[CalidadController]
+        C6[ReportesController]
+        C7[AdminController]
+        C8[SharedController]
+    end
+
+    subgraph L3["RUTEC.Application (contratos)"]
+        I1[ITrabajadorService]
+        I2[IContratoService]
+        I3[ICertificadoService]
+        I4[ICalidadService]
+        I5[IReporteService]
+        I6[IAdminService]
+        DTO[DTOs]
+    end
+
+    subgraph L2["RUTEC.Infrastructure (implementaciones)"]
+        S1[TrabajadorServiceImpl]
+        S2[ContratoServiceImpl]
+        S3[CertificadoServiceImpl - QuestPDF]
+        S4[CalidadServiceImpl]
+        S5[ReporteServiceImpl - ClosedXML]
+        S6[AdminServiceImpl]
+        CTX1[RutecDbContext]
+        CTX2[RueReadOnlyDbContext]
+    end
+
+    subgraph L1["RUTEC.Domain (entidades)"]
+        E1[MigranteTrabajador]
+        E2[Contrato]
+        E3[Idioma / NivelEducativo]
+        E4[VerificacionContrato]
+        E5[CodigoReferencia]
+        E6[OcupacionLaboral]
+        E7[EntidadSeguridadSocial]
+    end
+
+    L4 -->|usa| L3
+    L2 -->|implementa| L3
+    L2 -->|persiste| L1
+    L3 -->|trabaja con| L1
+
+    style L1 fill:#e8eaf6
+    style L2 fill:#e0f2f1
+    style L3 fill:#fff8e1
+    style L4 fill:#fce4ec</div><h3>4.3 Pipeline HTTP del backend</h3>
+<div class="mermaid">flowchart LR
+    REQ["HTTP Request"] --> SER["Serilog<br/>logging"]
+    SER --> CORS["CORS<br/>Angular policy"]
+    CORS --> AUTHN["Authentication<br/>(JWT Bearer)"]
+    AUTHN --> AUTHZ["Authorization<br/>([Authorize], roles)"]
+    AUTHZ --> ROUTE["Routing<br/>(api/...)"]
+    ROUTE --> CTRL["Controller action"]
+    CTRL --> SVC["Application Service"]
+    SVC --> DB[("EF Core<br/>SQL Server")]
+    SVC --> RESP["IActionResult"]
+    RESP --> JSON["JSON / PDF / XLSX"]</div><h3>4.4 Flujo de autenticación (compartido vía Shared.Auth)</h3>
+<div class="mermaid">sequenceDiagram
+    participant U as Usuario
+    participant A as Angular SPA
+    participant B as RUTEC.WebApi
+    participant I as Identity (AS_DB_RUE)
+
+    U->>A: Email + Password
+    A->>B: POST /api/Auth/login
+    B->>I: UserManager.FindByEmailAsync
+    I-->>B: ApplicationUser
+    B->>I: CheckPasswordSignInAsync
+    Note over B,I: PasswordMigrationHasher si es hash legacy
+    B->>B: GenerateAccessToken (15 min) + RefreshToken (7 días)
+    B-->>A: { accessToken, refreshToken, usuario }
+    A->>A: Almacena tokens (LocalStorage)
+    A->>B: GET /api/... (Authorization: Bearer)
+    B-->>A: 200 / 401
+    Note over A,B: Si 401 expirado → POST /api/Auth/refresh-token</div><h3>4.5 Ciclo de vida del trabajador y su contrato</h3>
+<div class="mermaid">sequenceDiagram
+    participant U as Usuario
+    participant A as Angular SPA
+    participant TC as TrabajadoresController
+    participant CC as ContratosController
+    participant CTX as RutecDbContext
+
+    U->>A: Captura datos básicos del trabajador
+    A->>TC: POST /api/trabajadores
+    TC->>CTX: INSERT MigranteTrabajador<br/>+ Idiomas + NivelesEducativos
+    CTX-->>TC: id
+    TC-->>A: 201 + TrabajadorDetailDto
+
+    U->>A: Asocia contrato
+    A->>CC: POST /api/trabajadores/{trabajadorId}/contratos
+    CC->>CTX: INSERT Contrato
+    CC-->>A: 201 + ContratoDetailDto
+
+    U->>A: Solicita constancia
+    A->>+CC: GET /api/certificados/generar/{contratoId}
+    Note right of CC: CertificadoService renderiza PDF con QuestPDF
+    CC-->>-A: 200 application/pdf</div><h3>4.6 Verificación de calidad</h3>
+<div class="mermaid">sequenceDiagram
+    participant V as Verificador
+    participant A as Angular SPA
+    participant CL as CalidadController
+    participant SVC as CalidadServiceImpl
+
+    V->>A: Listar contratos asignados
+    A->>CL: GET /api/calidad/contratos-gestion?estado=por-aclarar
+    CL->>SVC: GetContratosGestionAsync(usuario)
+    SVC-->>A: ContratoGestionDto[]
+
+    V->>A: Marca aclaración
+    A->>CL: POST /api/calidad/contratos/{id}/verificacion
+    Note right of CL: { aclaracion, motivoAclaracion, observacion }
+    CL->>SVC: RegistrarVerificacionAsync
+    SVC-->>A: 204 NoContent
+
+    V->>A: Tomar carga masiva
+    A->>CL: POST /api/calidad/asignar-contratos-masivo
+    Note right of CL: { usuario, cantidad }
+    CL-->>A: { asignados: N }</div><hr>
+<h2>5. Descripción de los módulos</h2>
+<h3>5.1 Mapa general de módulos</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Módulo backend</th>
+<th>Módulo frontend</th>
+<th>Propósito</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><code>AuthController</code> + <code>Shared.Auth</code></td>
+<td><code>features/auth/</code></td>
+<td>Login, refresh token, cambio de contraseña, perfil.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>TrabajadoresController</code> + <code>TrabajadorServiceImpl</code></td>
+<td><code>features/trabajadores/</code></td>
+<td>Captura y mantenimiento de trabajadores.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>ContratosController</code> + <code>ContratoServiceImpl</code></td>
+<td><code>features/contratos/</code></td>
+<td>Gestión de contratos vinculados al trabajador.</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>CertificadosController</code> + <code>CertificadoServiceImpl</code> (QuestPDF)</td>
+<td><code>features/certificados/</code></td>
+<td>Constancia PDF del contrato.</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>CalidadController</code> + <code>CalidadServiceImpl</code></td>
+<td><code>features/calidad/</code></td>
+<td>Verificación, aclaraciones y asignación masiva.</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>ReportesController</code> + <code>ReporteServiceImpl</code> (ClosedXML)</td>
+<td><code>features/reportes/</code></td>
+<td>Reportes analíticos y exportes Excel.</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>AdminController</code> + <code>AdminServiceImpl</code></td>
+<td><code>features/admin/</code></td>
+<td>Usuarios, códigos de referencia, empresas, eliminaciones masivas.</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>SharedController</code></td>
+<td>(consumido por formularios)</td>
+<td>Catálogos: departamentos, municipios, países, ocupaciones laborales, entidades de seguridad social.</td>
+</tr>
+</tbody></table>
+<h3>5.2 Módulo de Autenticación</h3>
+<ul>
+<li><strong>Identidad</strong>: ASP.NET Core Identity sobre <code>ApplicationUser</code> con campos <code>NombreCompleto</code>, <code>Activo</code>, <code>PasswordMigrated</code>, <code>LegacyPasswordSalt</code>.</li>
+<li><strong>JWT</strong>: <code>JwtTokenService</code> emite tokens con claims <code>NameIdentifier</code>, <code>Name</code>, <code>Email</code>, <code>Role</code>.</li>
+<li><strong>Refresh token</strong>: persistido en <code>RefreshTokens</code> con <code>FechaCreacion</code>, <code>FechaExpiracion</code>, <code>FechaRevocacion</code>. Rotación al usarse.</li>
+<li><strong>Migración legacy</strong>: <code>PasswordMigrationHasher</code> (heredado de <code>Shared.Auth</code>) valida hashes legacy SHA-1+salt y los re-hashea con Identity v3.</li>
+<li><strong>Seed inicial</strong>: crea roles <code>Admin</code>, <code>Verificador</code>, <code>Usuario</code> y un admin inicial.</li>
+</ul>
+<h3>5.3 Módulo de Trabajadores</h3>
+<p>Mantenimiento del trabajador extranjero — entidad central del dominio.</p>
+<table>
+<thead>
+<tr>
+<th>Acción</th>
+<th>Endpoint</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Listar (paginado / filtros)</td>
+<td><code>GET /api/trabajadores</code></td>
+</tr>
+<tr>
+<td>Buscar por cédula</td>
+<td><code>GET /api/trabajadores/buscar?cedula=</code></td>
+</tr>
+<tr>
+<td>Obtener detalle</td>
+<td><code>GET /api/trabajadores/{id}</code></td>
+</tr>
+<tr>
+<td>Crear trabajador</td>
+<td><code>POST /api/trabajadores</code></td>
+</tr>
+<tr>
+<td>Modificar datos</td>
+<td><code>PUT /api/trabajadores/{id}</code></td>
+</tr>
+<tr>
+<td>Modificar documento (CE / pasaporte)</td>
+<td><code>PUT /api/trabajadores/{id}/documento</code></td>
+</tr>
+</tbody></table>
+<h3>5.4 Módulo de Contratos</h3>
+<p>Submodulo anidado bajo trabajador (<code>/api/trabajadores/{trabajadorId}/contratos</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Acción</th>
+<th>Endpoint</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Listar contratos del trabajador</td>
+<td><code>GET /api/trabajadores/{trabajadorId}/contratos</code></td>
+</tr>
+<tr>
+<td>Obtener contrato</td>
+<td><code>GET /api/trabajadores/{trabajadorId}/contratos/{id}</code></td>
+</tr>
+<tr>
+<td>Crear contrato</td>
+<td><code>POST /api/trabajadores/{trabajadorId}/contratos</code></td>
+</tr>
+<tr>
+<td>Modificar contrato</td>
+<td><code>PUT /api/trabajadores/{trabajadorId}/contratos/{id}</code></td>
+</tr>
+<tr>
+<td>Finalizar contrato</td>
+<td><code>PUT /api/trabajadores/{trabajadorId}/contratos/{id}/finalizar</code></td>
+</tr>
+<tr>
+<td>Eliminar contrato (con motivo)</td>
+<td><code>DELETE /api/trabajadores/{trabajadorId}/contratos/{id}</code></td>
+</tr>
+</tbody></table>
+<h3>5.5 Módulo de Certificados</h3>
+<p>Generación de <strong>constancias PDF</strong> del contrato del trabajador.</p>
+<table>
+<thead>
+<tr>
+<th>Acción</th>
+<th>Endpoint</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Listar certificados por trabajador</td>
+<td><code>GET /api/certificados/trabajador/{trabajadorId}</code></td>
+</tr>
+<tr>
+<td>Obtener info de contrato para certificado</td>
+<td><code>GET /api/certificados/info/{contratoId}</code></td>
+</tr>
+<tr>
+<td><strong>Generar PDF (descarga)</strong></td>
+<td><code>GET /api/certificados/generar/{contratoId}</code></td>
+</tr>
+</tbody></table>
+<p>El PDF se renderiza con <strong>QuestPDF</strong> y se devuelve como <code>application/pdf</code> directamente al cliente.</p>
+<h3>5.6 Módulo de Calidad (Verificación)</h3>
+<p>Reservado a roles <code>Admin</code> y <code>Verificador</code>. Permite asignar contratos a verificadores, registrar aclaraciones y gestionar carga de trabajo.</p>
+<table>
+<thead>
+<tr>
+<th>Acción</th>
+<th>Endpoint</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Empresas (todas / pendientes / aprobadas)</td>
+<td><code>GET /api/calidad/empresas</code>, <code>/empresas/pendientes</code>, <code>/empresas/aprobadas</code></td>
+</tr>
+<tr>
+<td>Contratos de una empresa</td>
+<td><code>GET /api/calidad/empresas/{idOrganizacion}/contratos</code></td>
+</tr>
+<tr>
+<td>Listar verificadores</td>
+<td><code>GET /api/calidad/verificadores</code></td>
+</tr>
+<tr>
+<td>Asignar verificador a contrato</td>
+<td><code>POST /api/calidad/contratos/{contratoId}/verificador</code></td>
+</tr>
+<tr>
+<td>Gestión por estado y verificador</td>
+<td><code>GET /api/calidad/contratos-gestion?estado=&amp;verificador=</code></td>
+</tr>
+<tr>
+<td>Contratos de un verificador</td>
+<td><code>GET /api/calidad/verificador/{usuario}/contratos</code></td>
+</tr>
+<tr>
+<td>Eliminar verificación</td>
+<td><code>DELETE /api/calidad/verificacion/{id}</code></td>
+</tr>
+<tr>
+<td>Detalle de contrato para verificación</td>
+<td><code>GET /api/calidad/contrato-detalle/{contratoId}</code></td>
+</tr>
+<tr>
+<td>Motivos de aclaración</td>
+<td><code>GET /api/calidad/motivos-aclaracion</code></td>
+</tr>
+<tr>
+<td>Registrar verificación / aclaración</td>
+<td><code>POST /api/calidad/contratos/{contratoId}/verificacion</code></td>
+</tr>
+<tr>
+<td>Contratos disponibles (conteo)</td>
+<td><code>GET /api/calidad/contratos-disponibles-count</code></td>
+</tr>
+<tr>
+<td>Listar usuarios admin RUTEC</td>
+<td><code>GET /api/calidad/usuarios-admin</code></td>
+</tr>
+<tr>
+<td>Asignar carga masiva</td>
+<td><code>POST /api/calidad/asignar-contratos-masivo</code></td>
+</tr>
+<tr>
+<td>Asignar contrato único</td>
+<td><code>POST /api/calidad/asignar-contrato-unico</code></td>
+</tr>
+</tbody></table>
+<h3>5.7 Módulo de Reportes</h3>
+<p>Subdividido en reportes analíticos del dominio RUTEC, reportes cruzados con RUE y exportes Excel.</p>
+<ul>
+<li><strong>Distribuciones</strong>: <code>/general</code>, <code>/genero</code>, <code>/nacionalidad</code>, <code>/nivel-academico</code>, <code>/sector-economico</code>, <code>/zona</code>, <code>/ano-nacimiento</code>.</li>
+<li><strong>Empresas</strong>: <code>/empresas-registradas</code>, <code>/cantidad-trabajadores</code>.</li>
+<li><strong>Vista cruzada con RUE</strong>: <code>/rue-general</code>, <code>/rue-dia</code>, <code>/gestion-general</code>, <code>/gestion-dia</code>.</li>
+<li><strong>Dashboards</strong>: <code>/dashboard?fechaDesde=&amp;fechaHasta=&amp;pais=</code>, <code>/dashboard-rue?...</code>.</li>
+<li><strong>Exportación XLSX</strong>: <code>GET /api/reportes/exportar-excel?tipo={tipo}</code> con ClosedXML.</li>
+</ul>
+<h3>5.8 Módulo de Administración</h3>
+<p>Operaciones reservadas a <code>Admin</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Subdominio</th>
+<th>Endpoint base</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Usuarios</td>
+<td><code>GET /api/admin/usuarios</code>, <code>GET /api/admin/usuarios/{id}</code></td>
+</tr>
+<tr>
+<td>Códigos de referencia</td>
+<td><code>GET/POST/PUT/DELETE /api/admin/codigos-referencia</code></td>
+</tr>
+<tr>
+<td>Empresas RUTEC</td>
+<td><code>GET /api/admin/empresas</code>, <code>GET /api/admin/empresas/{idOrganizacion}/contratos</code></td>
+</tr>
+<tr>
+<td>Contratos</td>
+<td><code>GET /api/admin/contratos/{id}</code>, <code>/contratos/{id}/full</code>, <code>PUT /api/admin/contratos/{id}/fechas</code></td>
+</tr>
+<tr>
+<td>Eliminación masiva</td>
+<td><code>DELETE /api/admin/registros/masivo</code></td>
+</tr>
+<tr>
+<td>Eliminación individual (listar + borrar)</td>
+<td>`/api/admin/eliminacion/{contratos</td>
+</tr>
+</tbody></table>
+<h3>5.9 Catálogos compartidos</h3>
+<p><code>SharedController</code> expone catálogos cacheados con <code>IMemoryCache</code> (TTL 1 h):</p>
+<ul>
+<li><code>GET /api/Shared/departamentos</code></li>
+<li><code>GET /api/Shared/municipios?depto=</code></li>
+<li><code>GET /api/Shared/paises</code></li>
+<li><code>GET /api/Shared/codigos-referencia?grupo=</code></li>
+<li><code>GET /api/Shared/ocupaciones-laborales?nivel=&amp;padre=</code></li>
+<li><code>GET /api/Shared/entidades-seguridad-social?tipo=</code></li>
+<li><code>GET /api/Shared/mi-organizacion</code> (organización derivada del primer trabajador en RUTEC)</li>
+<li><code>GET /api/Shared/organizacion/{idOrganizacion}</code> (datos de la organización desde <strong><code>RueReadOnlyDbContext</code></strong> + actividad económica + representante legal).</li>
+</ul>
+<h3>5.10 Frontend (Angular)</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Ruta</th>
+<th>Componente principal</th>
+<th>Función</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Login</td>
+<td><code>/auth/login</code></td>
+<td><code>LoginComponent</code></td>
+<td>Autenticación pública</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td><code>/dashboard</code></td>
+<td><code>DashboardComponent</code></td>
+<td>KPIs y gráficos</td>
+</tr>
+<tr>
+<td>Trabajadores</td>
+<td><code>/trabajadores/...</code></td>
+<td><code>TrabajadorListComponent</code>, <code>TrabajadorDetailComponent</code>, <code>TrabajadorFormComponent</code></td>
+<td>Captura y mantenimiento</td>
+</tr>
+<tr>
+<td>Contratos</td>
+<td>(anidado en trabajador)</td>
+<td><code>ContratoListComponent</code>, <code>ContratoFormComponent</code></td>
+<td>Gestión contractual</td>
+</tr>
+<tr>
+<td>Certificados</td>
+<td><code>/certificados/...</code></td>
+<td><code>CertificadoComponent</code></td>
+<td>Vista previa y descarga PDF</td>
+</tr>
+<tr>
+<td>Calidad</td>
+<td><code>/calidad/...</code></td>
+<td><code>VerificacionListComponent</code>, <code>AclaracionFormComponent</code></td>
+<td>Bandeja del verificador</td>
+</tr>
+<tr>
+<td>Reportes</td>
+<td><code>/reportes/...</code></td>
+<td><code>ReporteDashboardComponent</code>, <code>ExportComponent</code></td>
+<td>Visualización y export</td>
+</tr>
+<tr>
+<td>Administración</td>
+<td><code>/admin/...</code></td>
+<td><code>UsuariosAdminComponent</code>, <code>CodigosReferenciaComponent</code>, <code>EliminacionMasivaComponent</code></td>
+<td>Backoffice</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6. Descripción de los APIs</h2>
+<p>Todos los endpoints viven bajo el prefijo <code>/api/...</code>. Salvo indicación contraria, requieren <code>Authorization: Bearer &lt;accessToken&gt;</code>. Algunos requieren rol específico vía <code>[Authorize(Roles = &quot;...&quot;)]</code>.</p>
+<p>Convenciones:</p>
+<ul>
+<li>Respuestas exitosas: <code>200 OK</code>, <code>201 Created</code> (con <code>Location</code>), <code>204 No Content</code>.</li>
+<li>Errores de validación: <code>400 Bad Request</code> con <code>{ message }</code> o <code>{ errors }</code>.</li>
+<li>Sin sesión: <code>401 Unauthorized</code>.</li>
+<li>No encontrado: <code>404 Not Found</code>.</li>
+<li>Sin rol: <code>403 Forbidden</code>.</li>
+</ul>
+<h3>6.1 Autenticación — <code>/api/Auth</code></h3>
+<h4><code>POST /api/Auth/login</code> (público)</h4>
+<p><strong>Body:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parámetro</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Correo o <code>UserName</code> del usuario.</td>
+</tr>
+<tr>
+<td><code>password</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Contraseña en texto plano (HTTPS).</td>
+</tr>
+</tbody></table>
+<p><strong>Ejemplo:</strong></p>
+<pre><code class="language-json">{ &quot;email&quot;: &quot;admin@mintrabajo.gov.co&quot;, &quot;password&quot;: &quot;Admin1234&quot; }
+</code></pre>
+<p><strong>Respuesta <code>200</code>:</strong></p>
+<pre><code class="language-json">{
+  &quot;accessToken&quot;: &quot;eyJhbGciOiJIUzI1NiIs...&quot;,
+  &quot;refreshToken&quot;: &quot;t+ZUFy1IB4pxCPdgZaSwgJkBgqgo...&quot;,
+  &quot;usuario&quot;: {
+    &quot;id&quot;: &quot;8eceefd6-...&quot;,
+    &quot;email&quot;: &quot;admin@mintrabajo.gov.co&quot;,
+    &quot;nombreCompleto&quot;: &quot;Administrador RUTEC&quot;,
+    &quot;roles&quot;: [&quot;Admin&quot;]
+  }
+}
+</code></pre>
+<p><strong>Errores:</strong> <code>401</code> con <code>{ &quot;message&quot;: &quot;Credenciales invalidas&quot; }</code> o <code>{ &quot;message&quot;: &quot;Cuenta bloqueada. Intente en 15 minutos.&quot; }</code>.</p>
+<h4><code>POST /api/Auth/refresh-token</code> (público)</h4>
+<p><strong>Body:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parámetro</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>accessToken</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Token expirado.</td>
+</tr>
+<tr>
+<td><code>refreshToken</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Refresh token vigente y no revocado.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta:</strong> misma forma que <code>/login</code>. Rotación: el refresh usado queda revocado.</p>
+<h4><code>POST /api/Auth/change-password</code> (autenticado)</h4>
+<p><strong>Body:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parámetro</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>currentPassword</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Contraseña actual.</td>
+</tr>
+<tr>
+<td><code>newPassword</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Nueva contraseña (cumple políticas Identity).</td>
+</tr>
+</tbody></table>
+<h4><code>GET /api/Auth/me</code> (autenticado)</h4>
+<p>Devuelve <code>{ id, email, nombreCompleto, roles }</code> del usuario en sesión.</p>
+<hr>
+<h3>6.2 Trabajadores — <code>/api/trabajadores</code></h3>
+<h4><code>GET /api/trabajadores</code> (autenticado)</h4>
+<p><strong>Query params (<code>TrabajadorFiltroDto</code>):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parámetro</th>
+<th>Tipo</th>
+<th>Default</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>cedula</code></td>
+<td>string</td>
+<td>—</td>
+<td>Filtro por cédula de extranjería.</td>
+</tr>
+<tr>
+<td><code>nombre</code></td>
+<td>string</td>
+<td>—</td>
+<td>Filtro <code>LIKE</code> por nombre / apellido.</td>
+</tr>
+<tr>
+<td><code>idOrganizacion</code></td>
+<td>long</td>
+<td>—</td>
+<td>Empresa empleadora.</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td>int</td>
+<td><code>1</code></td>
+<td>Página.</td>
+</tr>
+<tr>
+<td><code>pageSize</code></td>
+<td>int</td>
+<td><code>20</code></td>
+<td>Tamaño.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta <code>200</code>:</strong> array de <code>TrabajadorListDto</code> (<code>id</code>, <code>numeroCedulaExtranjeria</code>, <code>primerNombre</code>, <code>primerApellido</code>, <code>paisNacimientoNombre</code>, etc.).</p>
+<h4><code>GET /api/trabajadores/buscar?cedula={cedula}</code> (autenticado)</h4>
+<p>Busca por cédula de extranjería exacta. <code>404</code> si no existe.</p>
+<h4><code>GET /api/trabajadores/{id}</code> (autenticado)</h4>
+<p>Devuelve <code>TrabajadorDetailDto</code> con idiomas, niveles educativos y cantidad de contratos.</p>
+<h4><code>POST /api/trabajadores</code> (autenticado)</h4>
+<p><strong>Body (<code>CrearTrabajadorDto</code>) — campos clave:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>numeroCedulaExtranjeria</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Documento.</td>
+</tr>
+<tr>
+<td><code>numeroPasaporte</code></td>
+<td>string</td>
+<td>No</td>
+<td>Alternativo.</td>
+</tr>
+<tr>
+<td><code>primerNombre</code>, <code>primerApellido</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Identificación.</td>
+</tr>
+<tr>
+<td><code>segundoNombre</code>, <code>segundoApellido</code></td>
+<td>string</td>
+<td>No</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>codigoGenero</code>, <code>codigoEstadoCivil</code></td>
+<td>string</td>
+<td>No</td>
+<td>Catálogos.</td>
+</tr>
+<tr>
+<td><code>fechaNacimiento</code></td>
+<td>DateTime</td>
+<td>No</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>codigoPaisNacimiento</code>, <code>codigoPaisCiudadania</code></td>
+<td>string</td>
+<td>No</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>tipoDeVisa</code></td>
+<td>long</td>
+<td>No</td>
+<td>FK al catálogo de visas.</td>
+</tr>
+<tr>
+<td><code>tipoDocumento</code></td>
+<td>string</td>
+<td>No</td>
+<td><code>CE</code>, <code>PA</code>.</td>
+</tr>
+<tr>
+<td><code>idiomas[]</code></td>
+<td>array</td>
+<td>No</td>
+<td><code>{ codigoIdioma, codigoNivelHablado, codigoNivelEscrito, codigoNivelLeido }</code>.</td>
+</tr>
+<tr>
+<td><code>nivelesEducativos[]</code></td>
+<td>array</td>
+<td>No</td>
+<td><code>{ codigoNivelEducativo, semestresCursados, obtuvoTitulo, titulo }</code>.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta <code>201</code>:</strong> <code>TrabajadorDetailDto</code> con <code>Location</code> apuntando a <code>GET /{id}</code>.</p>
+<h4><code>PUT /api/trabajadores/{id}</code> (autenticado)</h4>
+<p><strong>Body (<code>ModificarTrabajadorDto</code>, todos opcionales):</strong></p>
+<p><code>primerNombre</code>, <code>segundoNombre</code>, <code>primerApellido</code>, <code>segundoApellido</code>, <code>codigoGenero</code>, <code>codigoEstadoCivil</code>, <code>fechaNacimiento</code>, <code>codigoPaisNacimiento</code>, <code>codigoPaisCiudadania</code>, <code>tipoDeVisa</code>.</p>
+<p><strong>Respuesta <code>204</code> / <code>404</code>.</strong></p>
+<h4><code>PUT /api/trabajadores/{id}/documento</code> (autenticado)</h4>
+<p><strong>Body (<code>ModificarDocumentoDto</code>):</strong> <code>numeroCedulaExtranjeria</code>, <code>numeroPasaporte</code>, <code>tipoDocumento</code>.</p>
+<hr>
+<h3>6.3 Contratos — <code>/api/trabajadores/{trabajadorId}/contratos</code></h3>
+<h4><code>GET /api/trabajadores/{trabajadorId}/contratos</code> (autenticado)</h4>
+<p>Lista los contratos del trabajador (<code>ContratoListDto[]</code>).</p>
+<h4><code>GET /api/trabajadores/{trabajadorId}/contratos/{id}</code> (autenticado)</h4>
+<p><code>ContratoDetailDto</code> con ocupaciones laborales, ubicación, profesión, entidades de seguridad social y estado de eliminación.</p>
+<h4><code>POST /api/trabajadores/{trabajadorId}/contratos</code> (autenticado)</h4>
+<p><strong>Body (<code>CrearContratoDto</code>):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>denominacionContrato</code></td>
+<td>string</td>
+<td>No</td>
+<td>Texto libre.</td>
+</tr>
+<tr>
+<td><code>tipoContratoTrabajador</code></td>
+<td>string</td>
+<td>No</td>
+<td>Catálogo.</td>
+</tr>
+<tr>
+<td><code>cargoTrabajador</code></td>
+<td>string</td>
+<td>No</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>vigenciaDesde</code>, <code>vigenciaHasta</code></td>
+<td>DateTime</td>
+<td>Sí</td>
+<td>Vigencias.</td>
+</tr>
+<tr>
+<td><code>codigoOcupacionLaboral1..3</code></td>
+<td>string</td>
+<td>No</td>
+<td>Hasta 3 ocupaciones laborales.</td>
+</tr>
+<tr>
+<td><code>codigoDepto</code>, <code>codigoMpio</code></td>
+<td>string</td>
+<td>No</td>
+<td>Localización del puesto.</td>
+</tr>
+<tr>
+<td><code>profesion</code>, <code>tarjetaProfesional</code></td>
+<td>string</td>
+<td>No</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>descripcionContrato</code></td>
+<td>string</td>
+<td>No</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>codigoEntidadPension</code>, <code>codigoEntidadSalud</code>, <code>codigoEntidadRiesgos</code>, <code>codigoEntidadCaja</code></td>
+<td>string</td>
+<td>No</td>
+<td>Entidades de seguridad social.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta <code>201</code>:</strong> <code>ContratoDetailDto</code> con <code>Location</code>.</p>
+<h4><code>PUT /api/trabajadores/{trabajadorId}/contratos/{id}</code> (autenticado)</h4>
+<p><strong>Body (<code>ModificarContratoDto</code>, todos opcionales):</strong> subset de los campos de creación.</p>
+<p><strong>Respuesta <code>204</code> / <code>404</code>.</strong></p>
+<h4><code>PUT /api/trabajadores/{trabajadorId}/contratos/{id}/finalizar</code> (autenticado)</h4>
+<p>Marca el contrato como finalizado en la fecha actual.</p>
+<h4><code>DELETE /api/trabajadores/{trabajadorId}/contratos/{id}</code> (autenticado)</h4>
+<p><strong>Body (<code>EliminarContratoDto</code>):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>motivoEliminado</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Justificación obligatoria.</td>
+</tr>
+</tbody></table>
+<hr>
+<h3>6.4 Certificados — <code>/api/certificados</code></h3>
+<p>Genera constancias PDF con QuestPDF.</p>
+<h4><code>GET /api/certificados/trabajador/{trabajadorId}</code> (autenticado)</h4>
+<p>Lista los certificados asociados al trabajador.</p>
+<h4><code>GET /api/certificados/info/{contratoId}</code> (autenticado)</h4>
+<p>Devuelve los datos del contrato listos para imprimir.</p>
+<h4><code>GET /api/certificados/generar/{contratoId}</code> (autenticado)</h4>
+<p><strong>Respuesta <code>200</code>:</strong> <code>application/pdf</code> con la constancia.
+<strong>Respuesta <code>400</code>:</strong> <code>{ &quot;message&quot;: &quot;...&quot; }</code> si los datos no son suficientes para emitir el PDF.</p>
+<p><strong>Ejemplo:</strong></p>
+<pre><code class="language-http">GET /api/certificados/generar/12345
+Authorization: Bearer eyJhbGciOi...
+Accept: application/pdf
+</code></pre>
+<hr>
+<h3>6.5 Calidad — <code>/api/calidad</code></h3>
+<p>Requiere rol <code>Admin</code> o <code>Verificador</code>.</p>
+<h4><code>GET /api/calidad/empresas</code></h4>
+<p>Lista empresas con conteo total de contratos, pendientes y aprobados (<code>EmpresaVerificacionDto[]</code>).</p>
+<h4><code>GET /api/calidad/empresas/pendientes</code></h4>
+<p>Subset de empresas con contratos por aclarar.</p>
+<h4><code>GET /api/calidad/empresas/aprobadas</code></h4>
+<p>Subset de empresas con contratos completamente verificados.</p>
+<h4><code>GET /api/calidad/empresas/{idOrganizacion}/contratos</code></h4>
+<p>Lista contratos de una empresa (<code>ContratoVerificacionDto[]</code>).</p>
+<h4><code>GET /api/calidad/verificadores</code></h4>
+<p>Lista usuarios habilitados como verificadores con sus métricas (<code>VerificadorGestionDto[]</code>).</p>
+<h4><code>POST /api/calidad/contratos/{contratoId}/verificador</code></h4>
+<p><strong>Body (<code>AsignarVerificadorDto</code>):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>usuarioVerificador</code></td>
+<td>string</td>
+<td>Sí</td>
+<td><code>UserName</code> del verificador.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta:</strong> <code>204</code> / <code>404</code>.</p>
+<h4><code>GET /api/calidad/contratos-gestion?estado={estado}&amp;verificador={usuario}</code></h4>
+<table>
+<thead>
+<tr>
+<th>Query</th>
+<th>Default</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>estado</code></td>
+<td><code>&quot;por-aclarar&quot;</code></td>
+<td>Filtro: <code>por-aclarar</code>, <code>aclarado</code>, <code>aprobado</code>.</td>
+</tr>
+<tr>
+<td><code>verificador</code></td>
+<td>usuario en sesión</td>
+<td>Si se omite, usa el <code>Name</code> del JWT.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta <code>200</code>:</strong> <code>ContratoGestionDto[]</code>.</p>
+<h4><code>GET /api/calidad/verificador/{usuario}/contratos</code></h4>
+<p>Atajo: contratos del verificador indicado.</p>
+<h4><code>DELETE /api/calidad/verificacion/{id}</code></h4>
+<p>Elimina una verificación registrada por error.</p>
+<h4><code>GET /api/calidad/contrato-detalle/{contratoId}</code></h4>
+<p>Detalle enriquecido del contrato para la pantalla de verificación.</p>
+<h4><code>GET /api/calidad/motivos-aclaracion</code></h4>
+<p>Catálogo de motivos disponibles.</p>
+<h4><code>POST /api/calidad/contratos/{contratoId}/verificacion</code></h4>
+<p><strong>Body (<code>RegistrarAclaracionDto</code>):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>aclaracion</code></td>
+<td>string</td>
+<td>Sí</td>
+<td><code>por-aclarar</code>, <code>aclarado</code>, <code>aprobado</code> o similar.</td>
+</tr>
+<tr>
+<td><code>motivoAclaracion</code></td>
+<td>string?</td>
+<td>No</td>
+<td>Código del motivo.</td>
+</tr>
+<tr>
+<td><code>observacion</code></td>
+<td>string?</td>
+<td>No</td>
+<td>Texto libre.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta:</strong> <code>204</code> / <code>404</code>.</p>
+<h4><code>GET /api/calidad/contratos-disponibles-count</code></h4>
+<p><strong>Respuesta:</strong> <code>{ &quot;count&quot;: 1234 }</code>.</p>
+<h4><code>GET /api/calidad/usuarios-admin</code></h4>
+<p>Lee <code>TB_PERMISO_ADMIN</code> (<code>app=&#39;RUTEC&#39; AND tipo=&#39;admin&#39;</code>) y devuelve <code>[{ userName }, ...]</code>.</p>
+<h4><code>POST /api/calidad/asignar-contratos-masivo</code></h4>
+<p><strong>Body (<code>AsignarContratosMasivoDto</code>):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>usuario</code></td>
+<td>string</td>
+<td>Sí</td>
+<td><code>UserName</code> del verificador.</td>
+</tr>
+<tr>
+<td><code>cantidad</code></td>
+<td>int</td>
+<td>Sí</td>
+<td>Número de contratos a asignar.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta <code>200</code>:</strong> <code>{ &quot;asignados&quot;: N }</code>.</p>
+<h4><code>POST /api/calidad/asignar-contrato-unico</code></h4>
+<p><strong>Body:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>usuario</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Verificador.</td>
+</tr>
+<tr>
+<td><code>contratoId</code></td>
+<td>long</td>
+<td>Sí</td>
+<td>Contrato.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta <code>200</code>:</strong> <code>{ &quot;ok&quot;: true }</code> o <code>400</code> con <code>{ &quot;message&quot;: &quot;...&quot; }</code>.</p>
+<hr>
+<h3>6.6 Reportes — <code>/api/Reportes</code></h3>
+<p>Requiere rol <code>Admin</code>. Salvo <code>/exportar-excel</code>, devuelven JSON con agregados.</p>
+<h4>Distribuciones del dominio RUTEC</h4>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/Reportes/general</code></td>
+<td>Conteo global de trabajadores y contratos.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/genero</code></td>
+<td>Distribución por género.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/nacionalidad</code></td>
+<td>Distribución por país de nacimiento.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/nivel-academico</code></td>
+<td>Distribución por nivel académico.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/sector-economico</code></td>
+<td>Distribución por sector económico.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/zona</code></td>
+<td>Distribución geográfica.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/ano-nacimiento</code></td>
+<td>Distribución por año de nacimiento.</td>
+</tr>
+</tbody></table>
+<h4>Empresas</h4>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/Reportes/empresas-registradas</code></td>
+<td>Empresas registradas en RUTEC.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/cantidad-trabajadores</code></td>
+<td>Trabajadores por empresa.</td>
+</tr>
+</tbody></table>
+<h4>Cruce con RUE</h4>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/Reportes/rue-general</code></td>
+<td>Indicadores RUE consolidados.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/rue-dia</code></td>
+<td>Indicadores RUE del día.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/gestion-general</code></td>
+<td>Gestión consolidada.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/gestion-dia</code></td>
+<td>Gestión del día.</td>
+</tr>
+</tbody></table>
+<h4>Dashboards</h4>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Query</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/Reportes/dashboard</code></td>
+<td><code>fechaDesde?</code>, <code>fechaHasta?</code>, <code>pais?</code></td>
+<td>KPIs y series.</td>
+</tr>
+<tr>
+<td><code>GET /api/Reportes/dashboard-rue</code></td>
+<td><code>fechaDesde?</code>, <code>fechaHasta?</code></td>
+<td>KPIs cruzados con RUE.</td>
+</tr>
+</tbody></table>
+<h4>Exportación Excel</h4>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Query</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/Reportes/exportar-excel?tipo={tipo}</code></td>
+<td><code>tipo</code> (<code>general</code>, <code>genero</code>, <code>nacionalidad</code>, ...)</td>
+<td><code>reporte-{tipo}-YYYYMMDD.xlsx</code></td>
+</tr>
+</tbody></table>
+<p><strong>Ejemplo:</strong></p>
+<pre><code class="language-http">GET /api/Reportes/exportar-excel?tipo=genero
+Authorization: Bearer eyJhbGciOi...
+</code></pre>
+<hr>
+<h3>6.7 Administración — <code>/api/admin</code></h3>
+<p>Requiere rol <code>Admin</code>.</p>
+<h4>Usuarios</h4>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/admin/usuarios</code></td>
+<td>Lista <code>UsuarioListDto[]</code> con roles, último acceso y estado.</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/usuarios/{id}</code></td>
+<td>Usuario por GUID.</td>
+</tr>
+</tbody></table>
+<h4>Códigos de referencia</h4>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/admin/codigos-referencia?grupo={g}</code></td>
+<td>Filtrado opcional por grupo.</td>
+</tr>
+<tr>
+<td><code>POST /api/admin/codigos-referencia</code></td>
+<td>Crea un código. Body <code>CrearCodigoReferenciaDto</code>.</td>
+</tr>
+<tr>
+<td><code>PUT /api/admin/codigos-referencia/{id}</code></td>
+<td>Modifica. Body <code>ModificarCodigoReferenciaDto</code>.</td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/codigos-referencia/{id}</code></td>
+<td>Elimina.</td>
+</tr>
+</tbody></table>
+<p><strong><code>CrearCodigoReferenciaDto</code>:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>codigo</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Identificador.</td>
+</tr>
+<tr>
+<td><code>nombre</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Descripción visible.</td>
+</tr>
+<tr>
+<td><code>grupo</code></td>
+<td>string</td>
+<td>Sí</td>
+<td>Familia / categoría.</td>
+</tr>
+<tr>
+<td><code>dominio</code></td>
+<td>string?</td>
+<td>No</td>
+<td>Subdominio opcional.</td>
+</tr>
+<tr>
+<td><code>ordenPresentacion</code></td>
+<td>short?</td>
+<td>No</td>
+<td>Orden en UI.</td>
+</tr>
+</tbody></table>
+<h4>Empresas y contratos</h4>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /api/admin/empresas</code></td>
+<td>Lista <code>EmpresaRutecDto[]</code> con conteo de trabajadores y contratos.</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/empresas/{idOrganizacion}/contratos</code></td>
+<td>Contratos administrativos por empresa.</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/contratos/{id}</code></td>
+<td>Contrato administrativo.</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/contratos/{id}/full</code></td>
+<td>Contrato completo (para edición de fechas).</td>
+</tr>
+<tr>
+<td><code>PUT /api/admin/contratos/{id}/fechas</code></td>
+<td>Body <code>ModificarFechasContratoDto { vigenciaDesde, vigenciaHasta }</code>.</td>
+</tr>
+</tbody></table>
+<h4>Eliminación masiva e individual</h4>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>DELETE /api/admin/registros/masivo</code></td>
+<td>Body <code>{ trabajadorIds: long[] }</code>. Respuesta <code>EliminacionMasivaResult { eliminados, errores, detalles }</code>.</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/eliminacion/contratos</code></td>
+<td>Lista candidatos.</td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/eliminacion/contratos/{id}</code></td>
+<td>Elimina contrato directamente.</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/eliminacion/trabajadores</code></td>
+<td>Lista candidatos.</td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/eliminacion/trabajadores/{id}</code></td>
+<td>Elimina trabajador.</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/eliminacion/idiomas</code></td>
+<td>Lista.</td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/eliminacion/idiomas/{id}</code></td>
+<td>Elimina.</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/eliminacion/niveles</code></td>
+<td>Lista.</td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/eliminacion/niveles/{id}</code></td>
+<td>Elimina.</td>
+</tr>
+</tbody></table>
+<hr>
+<h3>6.8 Catálogos compartidos — <code>/api/Shared</code></h3>
+<p>Cacheados con <code>IMemoryCache</code> (TTL 1 h) y requieren autenticación.</p>
+<h4><code>GET /api/Shared/departamentos</code></h4>
+<p>Lista los 33 departamentos: <code>[{ codigo, nombre }, ...]</code>.</p>
+<h4><code>GET /api/Shared/municipios?depto={cod}</code></h4>
+<table>
+<thead>
+<tr>
+<th>Parámetro</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>depto</code></td>
+<td>string?</td>
+<td>No</td>
+<td>Código de departamento. Si se omite devuelve todos.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta:</strong> <code>[{ codigo, nombre, departamento }, ...]</code>.</p>
+<h4><code>GET /api/Shared/paises</code></h4>
+<p><code>[{ codigo, nombre }, ...]</code>.</p>
+<h4><code>GET /api/Shared/codigos-referencia?grupo={g}</code></h4>
+<table>
+<thead>
+<tr>
+<th>Parámetro</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>grupo</code></td>
+<td>string?</td>
+<td>No</td>
+<td>Filtro por grupo.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta:</strong> <code>[{ id, codigo, nombre, grupo }, ...]</code>.</p>
+<h4><code>GET /api/Shared/ocupaciones-laborales?nivel={n}&amp;padre={cod}</code></h4>
+<table>
+<thead>
+<tr>
+<th>Parámetro</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>nivel</code></td>
+<td>int?</td>
+<td>No</td>
+<td>Profundidad (1..N).</td>
+</tr>
+<tr>
+<td><code>padre</code></td>
+<td>string?</td>
+<td>No</td>
+<td>Código del padre directo.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta:</strong> <code>[{ codigoOcupacionLaboral, nombreOcupacionLaboral, nivelOcupacionLaboral }, ...]</code>.</p>
+<h4><code>GET /api/Shared/entidades-seguridad-social?tipo={tipo}</code></h4>
+<table>
+<thead>
+<tr>
+<th>Parámetro</th>
+<th>Tipo</th>
+<th>Req.</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>tipo</code></td>
+<td>string?</td>
+<td>No</td>
+<td><code>pension</code>, <code>salud</code>, <code>riesgos</code>, <code>caja</code>.</td>
+</tr>
+</tbody></table>
+<p><strong>Respuesta:</strong> <code>[{ id, codigoEntidad, razonSocial, codigoTipoSeguridadSocial }, ...]</code>.</p>
+<h4><code>GET /api/Shared/mi-organizacion</code></h4>
+<p>Devuelve datos de la organización del primer trabajador del contexto RUTEC. Útil para precargar UIs.</p>
+<h4><code>GET /api/Shared/organizacion/{idOrganizacion}</code></h4>
+<p>Lee desde <strong><code>RueReadOnlyDbContext</code></strong> y devuelve:</p>
+<pre><code class="language-json">{
+  &quot;nombreOrganizacion&quot;: &quot;INGENIERIA Y SOLUCIONES PARA LA GESTION DEL RIESGO SAS&quot;,
+  &quot;actividadEconomica&quot;: &quot;Otros tipos de educación&quot;,
+  &quot;numeroDocumento&quot;: &quot;900123456 - 7&quot;,
+  &quot;representante&quot;: {
+    &quot;nombreCompleto&quot;: &quot;Carlos Mario Echeverri Zapata&quot;,
+    &quot;documentoIdentificacion&quot;: &quot;CC - 16737173&quot;
+  }
+}
+</code></pre>
+<hr>
+<h2>Apéndice A — Códigos de estado HTTP usados</h2>
+<table>
+<thead>
+<tr>
+<th>Código</th>
+<th>Significado en este sistema</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>200 OK</code></td>
+<td>Operación exitosa con payload.</td>
+</tr>
+<tr>
+<td><code>201 Created</code></td>
+<td>Recurso creado (<code>POST /trabajadores</code>, <code>POST /contratos</code>).</td>
+</tr>
+<tr>
+<td><code>204 No Content</code></td>
+<td>Mutación exitosa sin payload (<code>PUT</code>, <code>DELETE</code>).</td>
+</tr>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Validación fallida o regla de negocio violada.</td>
+</tr>
+<tr>
+<td><code>401 Unauthorized</code></td>
+<td>Credenciales inválidas, token expirado, refresh inválido.</td>
+</tr>
+<tr>
+<td><code>403 Forbidden</code></td>
+<td>Sin rol suficiente.</td>
+</tr>
+<tr>
+<td><code>404 Not Found</code></td>
+<td>Recurso inexistente.</td>
+</tr>
+</tbody></table>
+<h2>Apéndice B — Cómo ejecutar el sistema en local</h2>
+<pre><code class="language-bash"># Backend
+cd src/RUTEC.WebApi
+dotnet run --launch-profile http
+# → http://localhost:5142
+# → Swagger en http://localhost:5142/swagger
+
+# Frontend
+cd client/rutec-app
+npm install
+npm start
+# → http://localhost:4201
+</code></pre>
+<p>Credenciales por defecto (seed): <code>admin@mintrabajo.gov.co</code> / <code>Admin1234</code>.</p>
+<hr>
+<p><em>Documento generado automáticamente a partir del código fuente del proyecto <code>rutec-new</code> en <code>c:\Desarrollos\rutec-new</code>.</em></p>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'default',
+    securityLevel: 'loose',
+    flowchart: { curve: 'basis', htmlLabels: true },
+    sequence: { actorMargin: 50, boxMargin: 10 },
+    themeVariables: {
+      primaryColor: '#e8eaf6',
+      primaryTextColor: '#1a237e',
+      primaryBorderColor: '#1a237e',
+      lineColor: '#3949ab',
+      fontFamily: 'Segoe UI, Arial, sans-serif'
+    }
+  });
+  window.__renderMermaid = async () => {
+    await mermaid.run({ querySelector: '.mermaid' });
+    window.__mermaidDone = true;
+  };
+</script>
+</body>
+</html>

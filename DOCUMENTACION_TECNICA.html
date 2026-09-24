@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Sistema RUTEC — Documentación Técnica</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; line-height: 1.55; font-size: 11pt; }
+  h1 { color: #1a237e; border-bottom: 3px solid #1a237e; padding-bottom: 6px; page-break-before: always; }
+  h1:first-of-type { page-break-before: avoid; }
+  h2 { color: #283593; border-bottom: 1px solid #c5cae9; padding-bottom: 4px; margin-top: 1.6em; }
+  h3 { color: #3949ab; margin-top: 1.3em; }
+  h4 { color: #5c6bc0; }
+  p, li { text-align: justify; }
+  code { background: #f5f5f5; padding: 1px 5px; border-radius: 3px; font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 0.9em; color: #c2185b; }
+  pre { background: #263238; color: #eceff1; padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 9pt; line-height: 1.4; page-break-inside: avoid; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; page-break-inside: avoid; font-size: 10pt; }
+  th { background: #1a237e; color: #fff; text-align: left; padding: 8px 10px; }
+  td { border: 1px solid #e0e0e0; padding: 7px 10px; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+  blockquote { border-left: 4px solid #1a237e; background: #e8eaf6; margin: 12px 0; padding: 8px 14px; color: #283593; }
+  hr { border: 0; border-top: 1px dashed #c5cae9; margin: 24px 0; }
+  .mermaid { text-align: center; margin: 18px 0; page-break-inside: avoid; background: #fff; padding: 8px; }
+  .cover { text-align: center; padding: 80px 20px 60px; border-bottom: 4px double #1a237e; margin-bottom: 30px; }
+  .cover h1 { font-size: 28pt; color: #1a237e; border: 0; margin: 0 0 10px; page-break-before: avoid; }
+  .cover .subtitle { font-size: 14pt; color: #555; }
+  .cover .meta { margin-top: 30px; color: #777; font-size: 10pt; }
+  a { color: #1a237e; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <h1>Sistema RUTEC</h1>
+  <div class="subtitle">Documentación Técnica · Arquitectura, Backend, Frontend e Interacción</div>
+  <div class="meta">Ministerio del Trabajo · República de Colombia<br>Proyecto <code>rutec-new</code> — Mayo 2026</div>
+</div>
+<h1>Documentación Técnica — Sistema RUTEC</h1>
+<p><strong>Registro Único de Trabajadores Extranjeros en Colombia (RUTEC) — Ministerio del Trabajo</strong></p>
+<p>Versión modernizada de la aplicación legacy, construida como SPA Angular + API REST .NET con autenticación JWT, compartiendo la capa de autenticación y los usuarios con el sistema RUE.</p>
+<hr>
+<h2>1. Visión general</h2>
+<p>El proyecto <code>rutec-new</code> es una <strong>aplicación cliente/servidor desacoplada</strong> compuesta por:</p>
+<ul>
+<li><strong>Frontend SPA</strong> desarrollado en <strong>Angular 21</strong> con <strong>PrimeNG 21</strong> (tema Aura índigo, identidad Mintrabajo).</li>
+<li><strong>Backend Web API</strong> desarrollado en <strong>.NET (ASP.NET Core)</strong> con arquitectura por capas (Domain / Application / Infrastructure / WebApi).</li>
+<li><strong>Persistencia</strong> en <strong>SQL Server</strong> con <strong>tres bases de datos</strong>:<ul>
+<li><code>RUTEC</code> — datos del negocio (trabajadores, contratos, verificaciones, certificados).</li>
+<li><code>AS_DB_RUE</code> — autenticación (compartida con RUE) mediante ASP.NET Identity.</li>
+<li><code>RUE</code> — <strong>solo lectura</strong>, para consultar organizaciones/empresas ya registradas en el sistema RUE.</li>
+</ul>
+</li>
+<li><strong>Autenticación</strong> mediante <strong><code>Shared.Auth</code></strong> (Identity + JWT + Refresh Tokens) — los usuarios son los mismos que los de RUE.</li>
+<li><strong>Generación de certificados</strong> y <strong>reportes</strong> propios del módulo (<code>ICertificadoService</code>, <code>IReporteService</code>).</li>
+<li><strong>Módulo de calidad / verificación</strong> para asignar contratos a verificadores y registrar verificaciones.</li>
+</ul>
+<h3>Arquitectura general del sistema</h3>
+<div class="mermaid">flowchart LR
+    subgraph Browser["🖥️ Navegador del Usuario"]
+        SPA["Angular SPA<br/>(rutec-app)<br/>:4201"]
+    end
+
+    subgraph Backend["⚙️ Backend .NET"]
+        API["RUTEC.WebApi<br/>:5142"]
+        APP["RUTEC.Application<br/>(DTOs + IServices)"]
+        INFRA["RUTEC.Infrastructure<br/>(EF Core + Impl)"]
+        DOM["RUTEC.Domain<br/>(Entidades)"]
+    end
+
+    subgraph Shared["📦 Librerías Compartidas"]
+        AUTH["Shared.Auth<br/>(Identity + JWT)"]
+        COMM["Shared.Common"]
+    end
+
+    subgraph Data["💾 Persistencia"]
+        DB1[("AS_DB_RUE<br/>SQL Server<br/>Identity")]
+        DB2[("RUTEC<br/>SQL Server<br/>Negocio")]
+        DB3[("RUE<br/>SQL Server<br/>(solo lectura)")]
+    end
+
+    SPA -- "HTTPS / JSON<br/>Bearer JWT<br/>CORS" --> API
+    API --> APP
+    APP --> DOM
+    INFRA --> APP
+    INFRA --> DOM
+    API --> AUTH
+    AUTH --> DB1
+    INFRA -- "RutecDbContext" --> DB2
+    INFRA -- "RueReadOnlyDbContext" --> DB3
+
+    style SPA fill:#dd0031,color:#fff
+    style API fill:#512bd4,color:#fff
+    style DB1 fill:#ff8f00,color:#fff
+    style DB2 fill:#2e7d32,color:#fff
+    style DB3 fill:#9e9e9e,color:#fff</div><blockquote>
+<p><strong>Nota:</strong> RUE y RUTEC son aplicaciones gemelas que comparten Identity (mismo <code>AS_DB_RUE</code>) pero usan bases y APIs independientes. Los usuarios creados en una pueden autenticarse en la otra siempre que tengan el rol correspondiente.</p>
+</blockquote>
+<hr>
+<h2>2. Estructura de carpetas del repositorio</h2>
+<div class="mermaid">flowchart TD
+    ROOT["c:\\Desarrollos"]
+    ROOT --> RUTEC["rutec-new/"]
+    ROOT --> SHARED["Shared/"]
+
+    RUTEC --> SLN["RUTEC.slnx"]
+    RUTEC --> SRC["src/  (BACKEND .NET)"]
+    RUTEC --> CLI["client/  (FRONTEND Angular)"]
+
+    SRC --> DOM["RUTEC.Domain<br/>Entidades POCO"]
+    SRC --> APP["RUTEC.Application<br/>DTOs + Interfaces"]
+    SRC --> INFRA["RUTEC.Infrastructure<br/>EF Core + Servicios"]
+    SRC --> WEB["RUTEC.WebApi<br/>Controllers + Program.cs"]
+
+    CLI --> APP_NG["rutec-app/"]
+    APP_NG --> SRC_NG["src/app/"]
+    SRC_NG --> CONF["app.config.ts"]
+    SRC_NG --> ROUTES["app.routes.ts"]
+    SRC_NG --> CORE["core/<br/>(auth, services, models)"]
+    SRC_NG --> FEAT["features/<br/>(trabajadores, contratos,<br/>certificados, calidad,<br/>reportes, admin)"]
+    SRC_NG --> SHRD["shared/<br/>(layout, componentes)"]
+
+    SHARED --> SAUTH["Shared.Auth<br/>(reutilizada con RUE)"]
+    SHARED --> SCOMM["Shared.Common"]
+
+    style RUTEC fill:#ffebee
+    style SHARED fill:#fff3e0
+    style SRC fill:#ede7f6
+    style CLI fill:#e8f5e9</div><hr>
+<h2>3. Backend — RUTEC.WebApi (.NET)</h2>
+<h3>3.1 Arquitectura por capas (Clean Architecture)</h3>
+<div class="mermaid">flowchart TB
+    subgraph L4["🌐 RUTEC.WebApi  (capa HTTP)"]
+        C1[AuthController]
+        C2[TrabajadoresController]
+        C3[ContratosController]
+        C4[CertificadosController]
+        C5[CalidadController]
+        C6[ReportesController]
+        C7[AdminController]
+        C8[SharedController]
+        PRG[Program.cs]
+    end
+
+    subgraph L3["📜 RUTEC.Application  (contratos)"]
+        I1[ITrabajadorService]
+        I2[IContratoService]
+        I3[ICertificadoService]
+        I4[ICalidadService]
+        I5[IReporteService]
+        I6[IAdminService]
+        DTO[DTOs]
+    end
+
+    subgraph L2["🔧 RUTEC.Infrastructure  (implementaciones)"]
+        S1[TrabajadorServiceImpl]
+        S2[ContratoServiceImpl]
+        S3[CertificadoServiceImpl]
+        S4[CalidadServiceImpl]
+        S5[ReporteServiceImpl]
+        S6[AdminServiceImpl]
+        CTX1[RutecDbContext]
+        CTX2[RueReadOnlyDbContext]
+    end
+
+    subgraph L1["🏛️ RUTEC.Domain  (entidades)"]
+        E1[MigranteTrabajador]
+        E2[Contrato]
+        E3[ContratoIdioma]
+        E4[ContratoNivelEducativo]
+        E5[VerificacionContrato]
+        E6[CodigoReferencia]
+        E7[Pais / Departamento / Municipio]
+        E8[OcupacionLaboral]
+        E9[EntidadSeguridadSocial]
+    end
+
+    L4 -->|"usa"| L3
+    L2 -->|"implementa"| L3
+    L2 -->|"persiste"| L1
+    L3 -->|"trabaja con"| L1
+    PRG -.->|"DI"| S1
+    PRG -.->|"DI"| S2
+    PRG -.->|"DI"| S3
+    PRG -.->|"DI"| S4
+    PRG -.->|"DI"| S5
+    PRG -.->|"DI"| S6
+
+    style L1 fill:#e8eaf6
+    style L2 fill:#e0f2f1
+    style L3 fill:#fff8e1
+    style L4 fill:#fce4ec</div><h3>3.2 Punto de entrada — <code>Program.cs</code></h3>
+<p><a href="src/RUTEC.WebApi/Program.cs">src/RUTEC.WebApi/Program.cs</a> registra:</p>
+<ul>
+<li><strong>Serilog</strong> desde configuración.</li>
+<li><strong><code>AddSharedAuth(...)</code></strong> → Identity + JWT (librería compartida con RUE).</li>
+<li><strong>Dos DbContext de EF Core:</strong><ul>
+<li><code>RutecDbContext</code> sobre la cadena <code>RutecConnection</code> (BD <code>RUTEC</code>, escritura).</li>
+<li><code>RueReadOnlyDbContext</code> sobre la cadena <code>RueConnection</code> (BD <code>RUE</code>, <strong>solo lectura</strong> — para mostrar empresas/organizaciones del RUE en pantallas del módulo Calidad y Admin).</li>
+</ul>
+</li>
+<li>DI de servicios de aplicación (scoped):</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Interfaz</th>
+<th>Implementación</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ITrabajadorService</code></td>
+<td><code>TrabajadorServiceImpl</code></td>
+</tr>
+<tr>
+<td><code>IContratoService</code></td>
+<td><code>ContratoServiceImpl</code></td>
+</tr>
+<tr>
+<td><code>ICalidadService</code></td>
+<td><code>CalidadServiceImpl</code></td>
+</tr>
+<tr>
+<td><code>IReporteService</code></td>
+<td><code>ReporteServiceImpl</code></td>
+</tr>
+<tr>
+<td><code>IAdminService</code></td>
+<td><code>AdminServiceImpl</code></td>
+</tr>
+<tr>
+<td><code>ICertificadoService</code></td>
+<td><code>CertificadoServiceImpl</code></td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>CORS policy <code>&quot;Angular&quot;</code></strong> que habilita <code>http://localhost:4201</code> con credenciales.</li>
+<li><strong>Swagger</strong> (solo en Development).</li>
+<li><strong>Seeding automático</strong> al arrancar:<ul>
+<li>Crea roles propios de RUTEC: <code>Admin</code>, <code>Usuario</code>, <code>Verificador</code>.</li>
+<li>Crea/asegura usuario administrador <code>admin@mintrabajo.gov.co</code> / <code>Admin1234</code>.</li>
+<li>Migra usuarios legacy desde <code>aspnet_Membership</code> siguiendo el mismo patrón que RUE (compatibilidad SHA1 vía <code>PasswordMigrationHasher</code>).</li>
+</ul>
+</li>
+</ul>
+<h3>3.3 Configuración — <code>appsettings.json</code></h3>
+<table>
+<thead>
+<tr>
+<th>Clave</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ConnectionStrings.AuthConnection</code></td>
+<td>BD <strong>AS_DB_RUE</strong> (Identity, compartida con RUE)</td>
+</tr>
+<tr>
+<td><code>ConnectionStrings.RutecConnection</code></td>
+<td>BD <strong>RUTEC</strong> (dominio del negocio)</td>
+</tr>
+<tr>
+<td><code>ConnectionStrings.RueConnection</code></td>
+<td>BD <strong>RUE</strong> (solo lectura, empresas)</td>
+</tr>
+<tr>
+<td><code>Jwt.Issuer</code> / <code>Jwt.Audience</code></td>
+<td><code>RUTEC.WebApi</code> / <code>RUTEC.Angular</code></td>
+</tr>
+<tr>
+<td><code>Jwt.AccessTokenExpirationMinutes</code></td>
+<td><strong>15 min</strong></td>
+</tr>
+<tr>
+<td><code>Jwt.RefreshTokenExpirationDays</code></td>
+<td><strong>7 días</strong></td>
+</tr>
+<tr>
+<td><code>Email.SmtpHost</code></td>
+<td><code>smtp.office365.com:587</code></td>
+</tr>
+<tr>
+<td><strong>Puerto HTTP</strong></td>
+<td><code>http://localhost:5142</code> (<code>launchSettings.json</code>)</td>
+</tr>
+</tbody></table>
+<h3>3.4 Controllers (rutas REST)</h3>
+<p><strong>Base URL en desarrollo:</strong> <code>http://localhost:5142</code></p>
+<h4><code>AuthController</code> — <code>/api/auth</code></h4>
+<table>
+<thead>
+<tr>
+<th>Método</th>
+<th>Ruta</th>
+<th>Auth</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>POST</td>
+<td><code>/api/auth/login</code></td>
+<td>Anon</td>
+<td>Login → <code>{ accessToken, refreshToken, usuario }</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/auth/refresh-token</code></td>
+<td>Anon</td>
+<td>Renueva access token</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/auth/change-password</code></td>
+<td>JWT</td>
+<td>Cambia contraseña (marca usuario migrado)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/auth/me</code></td>
+<td>JWT</td>
+<td>Info del usuario autenticado</td>
+</tr>
+</tbody></table>
+<h4><code>TrabajadoresController</code> — <code>/api/trabajadores</code></h4>
+<table>
+<thead>
+<tr>
+<th>Método</th>
+<th>Ruta</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/trabajadores</code></td>
+<td>Listado paginado con filtros</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/trabajadores/{id}</code></td>
+<td>Detalle de un trabajador migrante</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/trabajadores/buscar?cedula=</code></td>
+<td>Búsqueda rápida por documento</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/trabajadores</code></td>
+<td>Crear nuevo trabajador</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/trabajadores/{id}</code></td>
+<td>Modificar datos</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/trabajadores/{id}/documento</code></td>
+<td>Modificar documento de identidad</td>
+</tr>
+</tbody></table>
+<h4><code>ContratosController</code> — <code>/api/trabajadores/{trabajadorId}/contratos</code></h4>
+<table>
+<thead>
+<tr>
+<th>Método</th>
+<th>Ruta</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>…/contratos</code></td>
+<td>Lista todos los contratos del trabajador</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>…/contratos/{id}</code></td>
+<td>Detalle del contrato (idiomas, niveles educativos)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>…/contratos</code></td>
+<td>Crea contrato</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>…/contratos/{id}</code></td>
+<td>Modifica contrato</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>…/contratos/{id}/finalizar</code></td>
+<td>Marca contrato como finalizado</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>…/contratos/{id}</code></td>
+<td>Elimina contrato con motivo</td>
+</tr>
+</tbody></table>
+<h4><code>CertificadosController</code> — <code>/api/certificados</code></h4>
+<table>
+<thead>
+<tr>
+<th>Método</th>
+<th>Ruta</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/certificados/trabajador/{trabajadorId}</code></td>
+<td>Lista certificados emitibles</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/certificados/info/{contratoId}</code></td>
+<td>Datos previos al certificado</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/certificados/generar/{contratoId}</code></td>
+<td>Genera y descarga el certificado</td>
+</tr>
+</tbody></table>
+<h4><code>CalidadController</code> — <code>/api/calidad</code> (módulo de verificación)</h4>
+<table>
+<thead>
+<tr>
+<th>Método</th>
+<th>Ruta</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/calidad/empresas</code></td>
+<td>Empresas con contratos a verificar</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/empresas/pendientes</code></td>
+<td>Empresas con verificaciones pendientes</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/empresas/aprobadas</code></td>
+<td>Empresas ya aprobadas</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/empresas/{idOrg}/contratos</code></td>
+<td>Contratos de la empresa</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/verificadores</code></td>
+<td>Lista de verificadores</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/verificador/{usuario}/contratos</code></td>
+<td>Contratos asignados al verificador</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/calidad/contratos/{contratoId}/verificador</code></td>
+<td>Asigna verificador a un contrato</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/contratos-gestion</code></td>
+<td>Bandeja de gestión</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/contrato-detalle/{contratoId}</code></td>
+<td>Detalle para verificar</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/motivos-aclaracion</code></td>
+<td>Catálogo de motivos</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/calidad/contratos/{contratoId}/verificacion</code></td>
+<td>Registra resultado de verificación</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/calidad/verificacion/{id}</code></td>
+<td>Elimina una verificación</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/contratos-disponibles-count</code></td>
+<td>Contador para asignación</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/calidad/usuarios-admin</code></td>
+<td>Usuarios con rol Admin/Verificador</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/calidad/asignar-contratos-masivo</code></td>
+<td>Asignación masiva</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/calidad/asignar-contrato-unico</code></td>
+<td>Asignación individual</td>
+</tr>
+</tbody></table>
+<h4><code>ReportesController</code> — <code>/api/reportes</code></h4>
+<p>Endpoints <code>GET</code> para los reportes: <code>general</code>, <code>genero</code>, <code>nacionalidad</code>, <code>nivel-academico</code>, <code>sector-economico</code>, <code>zona</code>, <code>ano-nacimiento</code>, <code>empresas-registradas</code>, <code>cantidad-trabajadores</code>, <code>rue-general</code>, <code>rue-dia</code>, <code>gestion-general</code>, <code>gestion-dia</code>, <code>dashboard</code>, <code>dashboard-rue</code>, <code>exportar-excel</code>.</p>
+<h4><code>AdminController</code> — <code>/api/admin</code></h4>
+<table>
+<thead>
+<tr>
+<th>Recurso</th>
+<th>Operaciones</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>usuarios</code></td>
+<td>GET listado, GET detalle</td>
+</tr>
+<tr>
+<td><code>codigos-referencia</code></td>
+<td>GET / POST / PUT / DELETE (catálogos del sistema)</td>
+</tr>
+<tr>
+<td><code>empresas</code></td>
+<td>GET listado (vía <code>RueReadOnlyDbContext</code>), GET contratos de una empresa</td>
+</tr>
+<tr>
+<td><code>contratos/{id}</code></td>
+<td>GET, GET full, PUT fechas</td>
+</tr>
+<tr>
+<td><code>registros/masivo</code></td>
+<td>DELETE</td>
+</tr>
+<tr>
+<td><code>eliminacion/{contratos|trabajadores|idiomas|niveles}</code></td>
+<td>GET listado, DELETE individual</td>
+</tr>
+</tbody></table>
+<h4><code>SharedController</code> — <code>/api/shared</code> (catálogos)</h4>
+<p><code>GET</code> para: <code>departamentos</code>, <code>municipios</code>, <code>paises</code>, <code>codigos-referencia</code>, <code>ocupaciones-laborales</code>, <code>entidades-seguridad-social</code>, <code>mi-organizacion</code>, <code>organizacion/{idOrganizacion}</code>.</p>
+<h3>3.5 Autenticación — <code>Shared.Auth</code> (compartida con RUE)</h3>
+<p>Idéntica a la del proyecto RUE:</p>
+<ul>
+<li><strong>ASP.NET Core Identity</strong> sobre <code>AuthDbContext</code> (cadena <code>AuthConnection</code> → <code>AS_DB_RUE</code>).</li>
+<li><strong>Reglas de contraseña</strong>: mínimo 6 caracteres, exige dígito y minúscula; email único; bloqueo a los 5 intentos por 15 minutos.</li>
+<li><strong><code>PasswordMigrationHasher</code></strong> para hashes legacy SHA1+salt.</li>
+<li><strong>JWT Bearer</strong>: issuer <code>RUTEC.WebApi</code>, audience <code>RUTEC.Angular</code>, expiración 15 min, refresh 7 días.</li>
+<li><strong><code>JwtTokenService</code></strong> persiste refresh tokens en <code>AuthDbContext.RefreshTokens</code> para revocación.</li>
+</ul>
+<blockquote>
+<p>Los <strong>roles</strong> son específicos de cada aplicación (<code>Aplicacion = &quot;RUTEC&quot;</code>): <code>Admin</code>, <code>Usuario</code>, <code>Verificador</code>. Un mismo usuario puede tener roles distintos en RUE y en RUTEC.</p>
+</blockquote>
+<hr>
+<h2>4. Frontend — rutec-app (Angular)</h2>
+<h3>4.1 Stack y bootstrap</h3>
+<p><a href="client/rutec-app/src/app/app.config.ts">client/rutec-app/src/app/app.config.ts</a> configura:</p>
+<ul>
+<li><code>provideRouter(routes)</code> con rutas lazy-load y <code>authGuard</code>.</li>
+<li><code>provideHttpClient(withInterceptors([jwtInterceptor]))</code> — todas las peticiones HTTP pasan por el interceptor JWT.</li>
+<li><code>providePrimeNG(...)</code> con preset Aura customizado en índigo (Mintrabajo).</li>
+</ul>
+<h3>4.2 Conexión al backend (sin proxy)</h3>
+<p>A diferencia de RUE, RUTEC <strong>no usa <code>proxy.conf.json</code></strong>: el frontend apunta directamente al backend mediante URL absoluta.</p>
+<p><a href="client/rutec-app/src/app/core/services/api.service.ts">client/rutec-app/src/app/core/services/api.service.ts</a>:</p>
+<pre><code class="language-typescript">@Injectable({ providedIn: &#39;root&#39; })
+export class ApiService {
+  readonly baseUrl = &#39;http://localhost:5142/api&#39;;
+}
+</code></pre>
+<div class="mermaid">flowchart LR
+    BR["Navegador"] --> NG["ng serve<br/>:4201"]
+    NG -- "HTTP CORS<br/>http://localhost:5142/api/*" --> API["RUTEC.WebApi<br/>:5142"]
+    API -- "Access-Control-Allow-Origin: 4201" --> NG
+
+    style NG fill:#dd0031,color:#fff
+    style API fill:#512bd4,color:#fff</div><p>La comunicación cruzada se habilita gracias al policy CORS <code>&quot;Angular&quot;</code> declarado en <code>Program.cs</code>.</p>
+<h3>4.3 Capa <code>core/</code></h3>
+<table>
+<thead>
+<tr>
+<th>Archivo</th>
+<th>Responsabilidad</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>core/services/api.service.ts</code></td>
+<td>Expone <code>baseUrl</code> absoluta del backend</td>
+</tr>
+<tr>
+<td><code>core/services/trabajadores.service.ts</code></td>
+<td>HTTP de trabajadores</td>
+</tr>
+<tr>
+<td><code>core/services/contratos.service.ts</code></td>
+<td>HTTP de contratos</td>
+</tr>
+<tr>
+<td><code>core/services/certificados.service.ts</code></td>
+<td>HTTP de certificados</td>
+</tr>
+<tr>
+<td><code>core/services/calidad.service.ts</code></td>
+<td>HTTP del módulo Calidad / Verificación</td>
+</tr>
+<tr>
+<td><code>core/services/reportes.service.ts</code></td>
+<td>HTTP de reportes</td>
+</tr>
+<tr>
+<td><code>core/services/admin.service.ts</code></td>
+<td>HTTP del módulo Admin</td>
+</tr>
+<tr>
+<td><code>core/services/shared.service.ts</code></td>
+<td>Catálogos (<code>/api/shared/*</code>)</td>
+</tr>
+<tr>
+<td><code>core/auth/auth.service.ts</code></td>
+<td>Login/logout, tokens en <code>localStorage</code>, estado reactivo con <code>signal()</code></td>
+</tr>
+<tr>
+<td><code>core/auth/jwt.interceptor.ts</code></td>
+<td>Inyecta <code>Authorization: Bearer &lt;token&gt;</code> y auto-refresh ante 401</td>
+</tr>
+<tr>
+<td><code>core/auth/auth.guard.ts</code></td>
+<td><code>authGuard</code> para rutas protegidas</td>
+</tr>
+</tbody></table>
+<h3>4.4 Mapa de rutas</h3>
+<div class="mermaid">flowchart TD
+    R0["/"]
+    R0 --> RPUB["/auth/login (público)"]
+    R0 --> RPROT["⛔ authGuard"]
+    RPROT --> LAY["LayoutComponent"]
+    LAY --> RD["/dashboard"]
+    LAY --> RC["/cambiar-clave"]
+
+    LAY --> RT["/trabajadores"]
+    RT --> RT1["/trabajadores/buscar"]
+    RT --> RT2["/trabajadores/registrar (wizard)"]
+    RT --> RT3["/trabajadores/:id"]
+    RT --> RT4["/trabajadores/:id/editar"]
+
+    RT3 --> RCONT["/trabajadores/:id/contratos"]
+    RCONT --> RCONT2["/contratos/agregar"]
+    RCONT --> RCONT3["/contratos/:cId"]
+    RCONT --> RCONT4["/contratos/:cId/editar"]
+    RCONT --> RCONT5["/contratos/:cId/finalizar"]
+
+    LAY --> RCERT["/certificados"]
+    RCERT --> RCERT2["/certificados/generar/:contratoId"]
+
+    LAY --> RCAL["/calidad/*<br/>(empresas, gestión,<br/>verificadores, asignar)"]
+    LAY --> RREP["/reportes/*<br/>(15+ reportes)"]
+    LAY --> RADM["/admin/*<br/>(usuarios, códigos,<br/>empresas, fechas,<br/>eliminación masiva)"]
+
+    style RPUB fill:#c8e6c9
+    style RPROT fill:#ffcdd2</div><p>Todas las rutas usan <code>loadComponent</code> (code-splitting).</p>
+<h3>4.5 Features</h3>
+<p>Cada subcarpeta de <code>client/rutec-app/src/app/features</code> representa un módulo funcional:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Responsabilidad</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>auth/</code></td>
+<td>Login y cambio de clave</td>
+</tr>
+<tr>
+<td><code>dashboard/</code></td>
+<td>Tablero principal</td>
+</tr>
+<tr>
+<td><code>trabajadores/</code></td>
+<td>CRUD de trabajadores migrantes (lista, búsqueda, registro wizard, resumen, edición)</td>
+</tr>
+<tr>
+<td><code>contratos/</code></td>
+<td>Gestión de contratos por trabajador (lista, formulario, detalle, finalización)</td>
+</tr>
+<tr>
+<td><code>certificados/</code></td>
+<td>Generación y listado de certificados</td>
+</tr>
+<tr>
+<td><code>calidad/</code></td>
+<td>Módulo de verificación: empresas, gestión, verificadores, asignación, detalle</td>
+</tr>
+<tr>
+<td><code>reportes/</code></td>
+<td>15+ reportes estadísticos (dashboard, género, nacionalidad, zona, etc.)</td>
+</tr>
+<tr>
+<td><code>admin/</code></td>
+<td>Administración: usuarios, códigos de referencia, empresas RUTEC, modificación de fechas, eliminación masiva</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5. Interacción Frontend ↔ Backend</h2>
+<h3>5.1 Flujo de autenticación (login + uso del token + refresh)</h3>
+<div class="mermaid">sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant NG as Angular SPA (:4201)
+    participant INT as jwtInterceptor
+    participant API as RUTEC.WebApi (:5142)
+    participant AUTH as Shared.Auth
+    participant DB as AS_DB_RUE
+
+    U->>NG: Ingresa usuario + password
+    NG->>API: POST /api/auth/login
+    API->>AUTH: SignInManager.CheckPassword
+    AUTH->>DB: SELECT user + hash
+    DB-->>AUTH: user + roles
+    AUTH-->>API: OK + roles RUTEC
+    API->>API: JwtTokenService.Generate
+    API->>DB: INSERT RefreshToken
+    API-->>NG: 200 { accessToken, refreshToken, usuario }
+    NG->>NG: localStorage.setItem(...)
+    NG->>NG: signal(currentUser).set(...)
+
+    Note over U,NG: Usuario navega
+
+    U->>NG: Clic "Trabajadores"
+    NG->>INT: GET /api/trabajadores
+    INT->>API: + Authorization: Bearer <token>
+    API->>API: [Authorize] valida JWT
+    API-->>NG: 200 [trabajadores]
+
+    Note over INT,API: ⚠️ Access token expira (15 min)
+
+    NG->>INT: GET /api/contratos…
+    INT->>API: + Bearer <expired>
+    API-->>INT: 401 Unauthorized
+    INT->>API: POST /api/auth/refresh-token
+    API->>DB: valida + revoca + crea nuevo
+    API-->>INT: 200 nuevos tokens
+    INT->>API: reintenta GET
+    API-->>NG: 200 OK</div><h3>5.2 Ciclo de vida de un trabajador y su contrato</h3>
+<div class="mermaid">sequenceDiagram
+    autonumber
+    actor U as Usuario (empresa)
+    participant NG as Angular SPA
+    participant API as RUTEC.WebApi
+    participant TS as TrabajadorService
+    participant CS as ContratoService
+    participant DB as RUTEC DB
+
+    U->>NG: /trabajadores/buscar (cédula)
+    NG->>API: GET /api/trabajadores/buscar?cedula=...
+    API->>TS: BuscarPorCedulaAsync
+    TS->>DB: SELECT MigranteTrabajador
+    alt No existe
+        API-->>NG: 404
+        U->>NG: /trabajadores/registrar (wizard)
+        NG->>API: POST /api/trabajadores (datos)
+        API->>TS: CrearAsync
+        TS->>DB: INSERT MigranteTrabajador
+        API-->>NG: 201 { id }
+    else Ya existe
+        API-->>NG: 200 { trabajador }
+    end
+
+    U->>NG: /trabajadores/:id/contratos/agregar
+    NG->>API: POST /api/trabajadores/{id}/contratos
+    API->>CS: CrearAsync
+    CS->>DB: INSERT Contrato + idiomas + niveles
+    API-->>NG: 201 { contrato }
+
+    Note over U,DB: Más tarde…
+
+    U->>NG: /contratos/:cId/finalizar
+    NG->>API: PUT /api/.../contratos/{cId}/finalizar
+    API->>CS: FinalizarAsync
+    CS->>DB: UPDATE Contrato (fechaFin)
+    API-->>NG: 204</div><h3>5.3 Flujo de verificación de calidad</h3>
+<div class="mermaid">sequenceDiagram
+    autonumber
+    actor A as Admin Calidad
+    actor V as Verificador
+    participant NG as Angular SPA
+    participant API as RUTEC.WebApi
+    participant SVC as CalidadService
+    participant DB as RUTEC DB
+
+    A->>NG: /calidad/asignar-revisor
+    NG->>API: GET /api/calidad/contratos-disponibles-count
+    NG->>API: GET /api/calidad/usuarios-admin
+    A->>NG: Selecciona verificador + N contratos
+    NG->>API: POST /api/calidad/asignar-contratos-masivo
+    API->>SVC: AsignarMasivo
+    SVC->>DB: UPDATE Contrato SET verificador=...
+    API-->>NG: 200 OK
+
+    Note over V,NG: El verificador entra
+
+    V->>NG: /calidad/gestion
+    NG->>API: GET /api/calidad/verificador/{usuario}/contratos
+    API-->>NG: contratos asignados
+    V->>NG: Clic "Verificar" contrato
+    NG->>API: GET /api/calidad/contrato-detalle/{cId}
+    API-->>NG: datos completos
+
+    V->>NG: Registra resultado
+    NG->>API: POST /api/calidad/contratos/{cId}/verificacion<br/>{ aprobado, observaciones, motivos[] }
+    API->>SVC: RegistrarVerificacion
+    SVC->>DB: INSERT VerificacionContrato + UPDATE Contrato.Estado
+    API-->>NG: 200 OK</div><h3>5.4 Generación de certificado</h3>
+<div class="mermaid">sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant NG as Angular SPA
+    participant API as CertificadosController
+    participant SVC as CertificadoService
+    participant DB as RUTEC DB
+
+    U->>NG: /certificados
+    NG->>API: GET /api/certificados/trabajador/{tId}
+    API-->>NG: lista de contratos certificables
+
+    U->>NG: Clic "Generar"
+    NG->>API: GET /api/certificados/info/{contratoId}
+    API->>SVC: GetInfo
+    SVC->>DB: JOIN Contrato + Trabajador + Empresa
+    API-->>NG: datos preview
+    U->>NG: Confirma
+
+    NG->>API: GET /api/certificados/generar/{contratoId}
+    API->>SVC: GenerarPdf
+    SVC->>DB: SELECT + plantilla
+    SVC-->>API: stream PDF
+    API-->>NG: 200 application/pdf
+    NG->>U: Descarga del certificado</div><h3>5.5 Resumen de la conversación HTTP</h3>
+<table>
+<thead>
+<tr>
+<th>Aspecto</th>
+<th>Configuración</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>URL base front (dev)</strong></td>
+<td><code>http://localhost:4201</code></td>
+</tr>
+<tr>
+<td><strong>URL base API (dev)</strong></td>
+<td><code>http://localhost:5142</code></td>
+</tr>
+<tr>
+<td><strong>Mecanismo dev</strong></td>
+<td><strong>Sin proxy</strong> — URL absoluta + CORS</td>
+</tr>
+<tr>
+<td><strong>CORS</strong></td>
+<td>Policy <code>Angular</code> permite <code>http://localhost:4201</code> con <code>AllowCredentials</code></td>
+</tr>
+<tr>
+<td><strong>Formato</strong></td>
+<td>JSON (excepto <code>application/pdf</code> en certificados y <code>application/vnd.openxmlformats-officedocument…</code> en exportar-excel)</td>
+</tr>
+<tr>
+<td><strong>Auth</strong></td>
+<td>JWT Bearer (Header <code>Authorization</code>), refresh dedicado</td>
+</tr>
+<tr>
+<td><strong>Documentación API</strong></td>
+<td>Swagger UI en <code>http://localhost:5142/swagger</code> (Development)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6. Modelo de datos (alto nivel)</h2>
+<div class="mermaid">erDiagram
+    MIGRANTE_TRABAJADOR ||--o{ CONTRATO : "tiene"
+    CONTRATO ||--o{ CONTRATO_IDIOMA : "habla"
+    CONTRATO ||--o{ CONTRATO_NIVEL_EDUCATIVO : "tiene"
+    CONTRATO ||--o{ VERIFICACION_CONTRATO : "es verificado"
+    PAIS ||--o{ MIGRANTE_TRABAJADOR : "nacionalidad"
+    DEPARTAMENTO ||--o{ MUNICIPIO : "contiene"
+    MUNICIPIO ||--o{ CONTRATO : "ubicación"
+    OCUPACION_LABORAL ||--o{ CONTRATO : "ocupación"
+    ENTIDAD_SEGURIDAD_SOCIAL ||--o{ CONTRATO : "afiliación"
+    CODIGO_REFERENCIA ||--o{ CONTRATO : "tipos varios"
+
+    MIGRANTE_TRABAJADOR {
+        long Id PK
+        string Documento
+        string Nombres
+        string Apellidos
+        int PaisId FK
+        date FechaNacimiento
+    }
+    CONTRATO {
+        long Id PK
+        long TrabajadorId FK
+        long IdOrganizacion
+        date FechaInicio
+        date FechaFin
+        string Estado
+        string UsuarioRegistro
+    }
+    VERIFICACION_CONTRATO {
+        long Id PK
+        long ContratoId FK
+        bool Aprobado
+        string Observaciones
+        string UsuarioVerificador
+        datetime FechaVerificacion
+    }</div><table>
+<thead>
+<tr>
+<th>Base</th>
+<th>Cadena</th>
+<th>Acceso</th>
+<th>Contenido</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>AS_DB_RUE</strong></td>
+<td><code>AuthConnection</code></td>
+<td>Lectura/Escritura</td>
+<td>Identity (compartido con RUE)</td>
+</tr>
+<tr>
+<td><strong>RUTEC</strong></td>
+<td><code>RutecConnection</code></td>
+<td>Lectura/Escritura</td>
+<td><code>MigranteTrabajador</code>, <code>Contrato</code>, <code>ContratoIdioma</code>, <code>ContratoNivelEducativo</code>, <code>VerificacionContrato</code>, <code>CodigoReferencia</code>, <code>Pais</code>, <code>Departamento</code>, <code>Municipio</code>, <code>OcupacionLaboral</code>, <code>EntidadSeguridadSocial</code></td>
+</tr>
+<tr>
+<td><strong>RUE</strong></td>
+<td><code>RueConnection</code></td>
+<td><strong>Solo lectura</strong> (<code>RueReadOnlyDbContext</code>)</td>
+<td>Tablas de organizaciones del sistema RUE consultadas para enriquecer pantallas de empresas en RUTEC</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>7. Pipeline HTTP del backend</h2>
+<div class="mermaid">flowchart LR
+    REQ((HTTP Request)) --> CORS[UseCors Angular]
+    CORS --> AUTHN[UseAuthentication<br/>JWT Bearer]
+    AUTHN --> AUTHZ[UseAuthorization]
+    AUTHZ --> RT[MapControllers]
+    RT --> CTRL[Controller Action]
+    CTRL --> SVC[Service Impl]
+    SVC --> EF1[(RutecDbContext)]
+    SVC --> EF2[(RueReadOnlyDbContext)]
+    EF1 --> SQL1[(RUTEC SQL)]
+    EF2 --> SQL2[(RUE SQL)]
+    CTRL --> RES((HTTP Response))
+
+    style CORS fill:#fff3e0
+    style AUTHN fill:#ffe0b2
+    style AUTHZ fill:#ffcc80
+    style CTRL fill:#bbdefb
+    style EF2 fill:#eceff1</div><hr>
+<h2>8. Relación RUE ↔ RUTEC</h2>
+<div class="mermaid">flowchart LR
+    subgraph RUE["Sistema RUE (rue-new)"]
+        RUEAPI["RUE.WebApi :5141"]
+        RUESPA["rue-app :4200"]
+        RUESPA --> RUEAPI
+    end
+
+    subgraph RUTEC["Sistema RUTEC (rutec-new)"]
+        RUTAPI["RUTEC.WebApi :5142"]
+        RUTSPA["rutec-app :4201"]
+        RUTSPA --> RUTAPI
+    end
+
+    AUTH[("AS_DB_RUE<br/>Identity compartido")]
+    RUEDB[("RUE<br/>(empresas)")]
+    RUTDB[("RUTEC<br/>(trabajadores)")]
+
+    RUEAPI --> AUTH
+    RUTAPI --> AUTH
+    RUEAPI --> RUEDB
+    RUTAPI --> RUTDB
+    RUTAPI -. "solo lectura<br/>RueReadOnlyDbContext" .-> RUEDB
+
+    style AUTH fill:#ff8f00,color:#fff
+    style RUE fill:#e3f2fd
+    style RUTEC fill:#ffebee</div><ul>
+<li>Ambas APIs <strong>comparten</strong> la base <code>AS_DB_RUE</code> y la librería <code>Shared.Auth</code> para login.</li>
+<li>Los <strong>roles</strong> son por aplicación (<code>Aplicacion = &quot;RUE&quot;</code> o <code>Aplicacion = &quot;RUTEC&quot;</code>), por lo que un mismo usuario puede tener permisos distintos en cada sistema.</li>
+<li>RUTEC <strong>consume datos de RUE</strong> mediante <code>RueReadOnlyDbContext</code> para listar empresas registradas.</li>
+</ul>
+<hr>
+<h2>9. Cómo ejecutar el sistema en local</h2>
+<h3>9.1 Backend</h3>
+<pre><code class="language-powershell">cd c:\Desarrollos\rutec-new\src\RUTEC.WebApi
+dotnet run --launch-profile http
+# Escucha en http://localhost:5142
+# Swagger en http://localhost:5142/swagger
+</code></pre>
+<h3>9.2 Frontend</h3>
+<pre><code class="language-powershell">cd c:\Desarrollos\rutec-new\client\rutec-app
+npm install        # primera vez
+npx ng serve --port 4201
+# Disponible en http://localhost:4201
+</code></pre>
+<blockquote>
+<p>El backend <strong>debe estar corriendo antes</strong> que el frontend porque las llamadas son por URL absoluta (sin proxy).</p>
+</blockquote>
+<h3>9.3 Credenciales por defecto (seed)</h3>
+<ul>
+<li><strong>Admin:</strong> <code>admin@mintrabajo.gov.co</code> / <code>Admin1234</code> (rol Admin RUTEC)</li>
+<li><strong>Legacy:</strong> <code>79835450</code> / <code>Urz7Cd</code> (rol Admin)</li>
+</ul>
+<hr>
+<h2>10. Tecnologías y versiones</h2>
+<table>
+<thead>
+<tr>
+<th>Componente</th>
+<th>Tecnología</th>
+<th>Versión</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Frontend</td>
+<td>Angular</td>
+<td>21.2</td>
+</tr>
+<tr>
+<td>UI</td>
+<td>PrimeNG / PrimeUix Aura</td>
+<td>21.1 / 2.0</td>
+</tr>
+<tr>
+<td>Lenguaje front</td>
+<td>TypeScript</td>
+<td>5.9</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td>ASP.NET Core</td>
+<td>.NET 8/9</td>
+</tr>
+<tr>
+<td>ORM</td>
+<td>Entity Framework Core (SQL Server provider)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td>ASP.NET Core Identity + JWT Bearer</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Logging</td>
+<td>Serilog</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Email</td>
+<td>SMTP (Office 365)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Base de datos</td>
+<td>SQL Server</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>11. Referencias rápidas</h2>
+<ul>
+<li>Entrypoint backend: <code>src/RUTEC.WebApi/Program.cs</code></li>
+<li>Configuración: <code>src/RUTEC.WebApi/appsettings.json</code></li>
+<li>Login endpoint: <code>src/RUTEC.WebApi/Controllers/AuthController.cs</code></li>
+<li>Trabajadores: <code>src/RUTEC.WebApi/Controllers/TrabajadoresController.cs</code></li>
+<li>Contratos: <code>src/RUTEC.WebApi/Controllers/ContratosController.cs</code></li>
+<li>Calidad: <code>src/RUTEC.WebApi/Controllers/CalidadController.cs</code></li>
+<li>DbContext RUTEC: <code>src/RUTEC.Infrastructure/Data/RutecDbContext.cs</code></li>
+<li>DbContext RUE (RO): <code>src/RUTEC.Infrastructure/Data/RueReadOnlyDbContext.cs</code></li>
+<li>Bootstrap front: <code>client/rutec-app/src/app/app.config.ts</code></li>
+<li>Rutas front: <code>client/rutec-app/src/app/app.routes.ts</code></li>
+<li>API service: <code>client/rutec-app/src/app/core/services/api.service.ts</code></li>
+<li>Shared Auth DI: <code>Shared/Shared.Auth/DependencyInjection.cs</code></li>
+</ul>
+<hr>
+<div style="text-align:center; color:#666; font-size:0.9em; margin-top:40px;">
+Documento generado automáticamente · Ministerio del Trabajo · Sistema RUTEC
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'default',
+    securityLevel: 'loose',
+    flowchart: { curve: 'basis', htmlLabels: true },
+    sequence: { actorMargin: 50, boxMargin: 10 },
+    themeVariables: {
+      primaryColor: '#e8eaf6',
+      primaryTextColor: '#1a237e',
+      primaryBorderColor: '#1a237e',
+      lineColor: '#3949ab',
+      fontFamily: 'Segoe UI, Arial, sans-serif'
+    }
+  });
+  window.__renderMermaid = async () => {
+    await mermaid.run({ querySelector: '.mermaid' });
+    window.__mermaidDone = true;
+  };
+</script>
+</body>
+</html>

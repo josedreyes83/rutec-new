@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RUTEC.Application/RUTEC.Application.csproj" />
+    <Project Path="src/RUTEC.Domain/RUTEC.Domain.csproj" />
+    <Project Path="src/RUTEC.Infrastructure/RUTEC.Infrastructure.csproj" />
+    <Project Path="src/RUTEC.WebApi/RUTEC.WebApi.csproj" />
+  </Folder>
+</Solution>

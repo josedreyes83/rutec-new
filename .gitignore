@@ -1,0 +1,39 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Angular
+node_modules/
+dist/
+.angular/
+
+# SPA compilado dentro del backend (se genera con ng build)
+src/RUTEC.WebApi/wwwroot/
+
+# Salida de dotnet publish
+publish/
+
+# Configuracion con secretos: credenciales de SQL y clave JWT.
+# Usar appsettings.json como plantilla y crear estos archivos en cada entorno.
+appsettings.Development.json
+appsettings.Production.json
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Uploads
+uploads/
+
+# Docs
+docs/
