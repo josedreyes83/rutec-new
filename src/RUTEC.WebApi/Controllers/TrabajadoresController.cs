@@ -11,10 +11,12 @@ namespace RUTEC.WebApi.Controllers;
 public class TrabajadoresController : ControllerBase
 {
     private readonly ITrabajadorService _service;
+    private readonly IUsuarioActualService _usuarioActual;
 
-    public TrabajadoresController(ITrabajadorService service)
+    public TrabajadoresController(ITrabajadorService service, IUsuarioActualService usuarioActual)
     {
         _service = service;
+        _usuarioActual = usuarioActual;
     }
 
     [HttpGet]
@@ -41,8 +43,14 @@ public class TrabajadoresController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Crear([FromBody] CrearTrabajadorDto dto)
     {
-        // TODO: Extract idOrganizacion and usuarioRegistro from claims
-        var id = await _service.CrearAsync(dto, 0, "system");
+        var usuario = await _usuarioActual.ObtenerAsync();
+
+        // Mismo criterio que en contratos: sin empresa no se registra, para
+        // no seguir generando trabajadores con ID_ORGANIZACION = 0.
+        if (usuario.IdOrganizacion is not { } idOrganizacion)
+            return BadRequest(new { message = "El usuario no esta asociado a una empresa registrada en RUE." });
+
+        var id = await _service.CrearAsync(dto, idOrganizacion, usuario.Usuario);
         var result = await _service.GetByIdAsync(id);
         return CreatedAtAction(nameof(GetById), new { id }, result);
     }

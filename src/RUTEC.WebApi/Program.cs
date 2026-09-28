@@ -28,6 +28,11 @@ builder.Services.AddScoped<RUTEC.Application.Services.IReporteService, RUTEC.Inf
 builder.Services.AddScoped<RUTEC.Application.Services.IAdminService, RUTEC.Infrastructure.Services.AdminServiceImpl>();
 builder.Services.AddScoped<RUTEC.Application.Services.ICertificadoService, RUTEC.Infrastructure.Services.CertificadoServiceImpl>();
 
+// Identidad del usuario de la peticion. Scoped porque memoiza la busqueda
+// de la organizacion en RUE por peticion.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<RUTEC.Application.Services.IUsuarioActualService, RUTEC.WebApi.Services.UsuarioActualService>();
+
 // Cache
 builder.Services.AddMemoryCache();
 
