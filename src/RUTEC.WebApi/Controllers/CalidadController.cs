@@ -18,12 +18,18 @@ public class CalidadController : ControllerBase
     private readonly ICalidadService _service;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly AuthDbContext _authDb;
+    private readonly IUsuarioActualService _usuarioActual;
 
-    public CalidadController(ICalidadService service, UserManager<ApplicationUser> userManager, AuthDbContext authDb)
+    public CalidadController(
+        ICalidadService service,
+        UserManager<ApplicationUser> userManager,
+        AuthDbContext authDb,
+        IUsuarioActualService usuarioActual)
     {
         _service = service;
         _userManager = userManager;
         _authDb = authDb;
+        _usuarioActual = usuarioActual;
     }
 
     [HttpGet("empresas")]
@@ -51,8 +57,8 @@ public class CalidadController : ControllerBase
     [HttpGet("contratos-gestion")]
     public async Task<IActionResult> GetContratosGestion([FromQuery] string estado = "por-aclarar", [FromQuery] string? verificador = null)
     {
-        // Default to logged-in user, matching legacy behavior
-        var usuario = verificador ?? User.FindFirstValue(ClaimTypes.Name);
+        // Sin filtro explicito, el verificador ve lo suyo (comportamiento legado).
+        var usuario = verificador ?? (await _usuarioActual.ObtenerAsync()).Usuario;
         return Ok(await _service.GetContratosGestionAsync(estado, usuario));
     }
 
@@ -80,8 +86,10 @@ public class CalidadController : ControllerBase
     [HttpPost("contratos/{contratoId}/verificacion")]
     public async Task<IActionResult> RegistrarVerificacion(long contratoId, [FromBody] RegistrarAclaracionDto dto)
     {
-        var usuario = User.FindFirstValue(ClaimTypes.Name) ?? "system";
-        var ok = await _service.RegistrarVerificacionAsync(contratoId, dto, usuario);
+        // Antes caia a "system" si faltaba el claim: la verificacion quedaba
+        // registrada a nombre de nadie.
+        var usuario = await _usuarioActual.ObtenerAsync();
+        var ok = await _service.RegistrarVerificacionAsync(contratoId, dto, usuario.Usuario);
         return ok ? NoContent() : NotFound();
     }
 

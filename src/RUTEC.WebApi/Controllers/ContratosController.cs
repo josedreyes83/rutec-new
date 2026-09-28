@@ -11,10 +11,12 @@ namespace RUTEC.WebApi.Controllers;
 public class ContratosController : ControllerBase
 {
     private readonly IContratoService _service;
+    private readonly IUsuarioActualService _usuarioActual;
 
-    public ContratosController(IContratoService service)
+    public ContratosController(IContratoService service, IUsuarioActualService usuarioActual)
     {
         _service = service;
+        _usuarioActual = usuarioActual;
     }
 
     [HttpGet]
@@ -34,7 +36,15 @@ public class ContratosController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Crear(long trabajadorId, [FromBody] CrearContratoDto dto)
     {
-        var id = await _service.CrearAsync(trabajadorId, dto, 0, "0");
+        var usuario = await _usuarioActual.ObtenerAsync();
+
+        // Un contrato pertenece a una empresa. Antes se guardaba 0 cuando no
+        // habia como saber cual, y eso dejo filas huerfanas que ningun reporte
+        // por empresa alcanza. Mejor negar el registro que seguir creandolas.
+        if (usuario.IdOrganizacion is not { } idOrganizacion)
+            return BadRequest(new { message = "El usuario no esta asociado a una empresa registrada en RUE." });
+
+        var id = await _service.CrearAsync(trabajadorId, dto, idOrganizacion, usuario.Usuario);
         var result = await _service.GetByIdAsync(id);
         return CreatedAtAction(nameof(GetById), new { trabajadorId, id }, result);
     }
@@ -42,21 +52,24 @@ public class ContratosController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Modificar(long id, [FromBody] ModificarContratoDto dto)
     {
-        var ok = await _service.ModificarAsync(id, dto, "0");
+        var usuario = await _usuarioActual.ObtenerAsync();
+        var ok = await _service.ModificarAsync(id, dto, usuario.Usuario);
         return ok ? NoContent() : NotFound();
     }
 
     [HttpPut("{id}/finalizar")]
     public async Task<IActionResult> Finalizar(long id)
     {
-        var ok = await _service.FinalizarAsync(id, "0");
+        var usuario = await _usuarioActual.ObtenerAsync();
+        var ok = await _service.FinalizarAsync(id, usuario.Usuario);
         return ok ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Eliminar(long id, [FromBody] EliminarContratoDto dto)
     {
-        var ok = await _service.EliminarAsync(id, dto, "0");
+        var usuario = await _usuarioActual.ObtenerAsync();
+        var ok = await _service.EliminarAsync(id, dto, usuario.Usuario);
         return ok ? NoContent() : NotFound();
     }
 }

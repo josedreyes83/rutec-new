@@ -41,7 +41,10 @@ public class RutecDbContext : DbContext
         // TB_MIGRANTE_TRABAJADOR
         modelBuilder.Entity<MigranteTrabajador>(entity =>
         {
-            entity.ToTable("TB_MIGRANTE_TRABAJADOR");
+            // La tabla tiene un trigger de auditoria. Sin declararlo, EF Core
+            // genera INSERT ... OUTPUT sin INTO y SQL Server lo rechaza (Msg 334).
+            entity.ToTable("TB_MIGRANTE_TRABAJADOR",
+                tb => tb.HasTrigger("Insertar_Log_migrante_trabajador"));
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("ID_MIGRANTE_TRABAJADOR");
             entity.Property(e => e.IdOrganizacion).HasColumnName("ID_ORGANIZACION");
@@ -73,7 +76,8 @@ public class RutecDbContext : DbContext
         // TB_MIGRANTE_TRABAJADOR_CONTRATO
         modelBuilder.Entity<Contrato>(entity =>
         {
-            entity.ToTable("TB_MIGRANTE_TRABAJADOR_CONTRATO");
+            entity.ToTable("TB_MIGRANTE_TRABAJADOR_CONTRATO",
+                tb => tb.HasTrigger("Insertar_Log_migrante_trabajador_contrato"));
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("ID_MIGRANTE_TRABAJADOR_CONTRATO");
             entity.Property(e => e.IdMigranteTrabajador).HasColumnName("ID_MIGRANTE_TRABAJADOR");
@@ -109,7 +113,8 @@ public class RutecDbContext : DbContext
         // CONTRATO_MIGRANTE_IDIOMA
         modelBuilder.Entity<ContratoIdioma>(entity =>
         {
-            entity.ToTable("CONTRATO_MIGRANTE_IDIOMA");
+            entity.ToTable("CONTRATO_MIGRANTE_IDIOMA",
+                tb => tb.HasTrigger("Insertar_Log_contrato_migrante_idioma"));
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("ID_MIGRANTE_IDIOMA");
             entity.Property(e => e.IdTrabajadorMigrante).HasColumnName("ID_TRABAJADOR_MIGRANTE");
@@ -124,7 +129,8 @@ public class RutecDbContext : DbContext
         // CONTRATO_MIGRANTE_NIVEL_EDUCATIVO
         modelBuilder.Entity<ContratoNivelEducativo>(entity =>
         {
-            entity.ToTable("CONTRATO_MIGRANTE_NIVEL_EDUCATIVO");
+            entity.ToTable("CONTRATO_MIGRANTE_NIVEL_EDUCATIVO",
+                tb => tb.HasTrigger("Insertar_Log_contrato_migrante_nivel_educativo"));
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("ID_ESTUDIO_MIGRANTE");
             entity.Property(e => e.IdTrabajadorMigrante).HasColumnName("ID_TRABAJADOR_MIGRANTE");

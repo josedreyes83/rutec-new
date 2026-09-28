@@ -11,10 +11,12 @@ namespace RUTEC.WebApi.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly IAdminService _service;
+    private readonly IUsuarioActualService _usuarioActual;
 
-    public AdminController(IAdminService service)
+    public AdminController(IAdminService service, IUsuarioActualService usuarioActual)
     {
         _service = service;
+        _usuarioActual = usuarioActual;
     }
 
     // ── Usuarios ──────────────────────────────────────────────
@@ -98,8 +100,10 @@ public class AdminController : ControllerBase
     [HttpPut("contratos/{id}/fechas")]
     public async Task<IActionResult> ModificarFechasContrato(long id, [FromBody] ModificarFechasContratoDto dto)
     {
-        var usuario = User.Identity?.Name ?? "admin";
-        var ok = await _service.ModificarFechasContratoAsync(id, dto, usuario);
+        // Antes caia a "admin" cuando el claim faltaba, lo que borraba el
+        // rastro justo en la operacion mas sensible del modulo.
+        var usuario = await _usuarioActual.ObtenerAsync();
+        var ok = await _service.ModificarFechasContratoAsync(id, dto, usuario.Usuario);
         return ok ? NoContent() : NotFound();
     }
 
