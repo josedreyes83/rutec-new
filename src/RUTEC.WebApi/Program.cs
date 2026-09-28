@@ -33,6 +33,17 @@ builder.Services.AddScoped<RUTEC.Application.Services.ICertificadoService, RUTEC
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<RUTEC.Application.Services.IUsuarioActualService, RUTEC.WebApi.Services.UsuarioActualService>();
 
+// Correo: bitacora en dbo.TB_LOG_CORREO y reintento en segundo plano.
+builder.Services.Configure<RUTEC.Infrastructure.Configuration.EmailOptions>(
+    builder.Configuration.GetSection(RUTEC.Infrastructure.Configuration.EmailOptions.Seccion));
+builder.Services.AddScoped<RUTEC.Infrastructure.Services.IRemitenteSmtp, RUTEC.Infrastructure.Services.RemitenteSmtp>();
+// El tipo concreto tambien se registra: el reintento lo necesita para
+// operar sobre filas existentes, que no es parte de IEmailService.
+builder.Services.AddScoped<RUTEC.Infrastructure.Services.EmailServiceImpl>();
+builder.Services.AddScoped<RUTEC.Application.Services.IEmailService>(
+    sp => sp.GetRequiredService<RUTEC.Infrastructure.Services.EmailServiceImpl>());
+builder.Services.AddHostedService<RUTEC.Infrastructure.Services.ReintentoCorreoService>();
+
 // Cache
 builder.Services.AddMemoryCache();
 

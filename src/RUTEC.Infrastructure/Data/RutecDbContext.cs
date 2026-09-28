@@ -15,6 +15,7 @@ public class RutecDbContext : DbContext
     public DbSet<VerificacionContrato> VerificacionesContratos => Set<VerificacionContrato>();
     public DbSet<EntidadSeguridadSocial> EntidadesSeguridadSocial => Set<EntidadSeguridadSocial>();
     public DbSet<OcupacionLaboral> OcupacionesLaborales => Set<OcupacionLaboral>();
+    public DbSet<LogCorreo> LogCorreos => Set<LogCorreo>();
 
     // Parametric tables (RUTEC DB)
     public DbSet<CodigoReferencia> CodigosReferencia => Set<CodigoReferencia>();
@@ -154,6 +155,32 @@ public class RutecDbContext : DbContext
             entity.Property(e => e.Observacion).HasColumnName("OBSERVACION").HasMaxLength(500);
             entity.Property(e => e.UsuarioRegistro).HasColumnName("USUARIO_REGISTRO").HasMaxLength(50);
             entity.Property(e => e.FechaRegistro).HasColumnName("FECHA_REGISTRO");
+        });
+
+        // TB_LOG_CORREO (db/migrations/001 y 002)
+        modelBuilder.Entity<LogCorreo>(entity =>
+        {
+            entity.ToTable("TB_LOG_CORREO");
+            entity.HasKey(e => e.Id);
+            // Tabla nueva, no legada: la PK es BIGINT de verdad. Hay que
+            // deshacer la conversion global long -> decimal(18,0) de arriba.
+            entity.Property(e => e.Id).HasColumnName("ID_LOG_CORREO").HasColumnType("bigint");
+            entity.Property(e => e.Destinatario).HasColumnName("DESTINATARIO").HasMaxLength(500).IsUnicode(false);
+            entity.Property(e => e.ConCopia).HasColumnName("CON_COPIA").HasMaxLength(500).IsUnicode(false);
+            entity.Property(e => e.Asunto).HasColumnName("ASUNTO").HasMaxLength(500);
+            entity.Property(e => e.Cuerpo).HasColumnName("CUERPO");
+            entity.Property(e => e.EsHtml).HasColumnName("ES_HTML");
+            entity.Property(e => e.Plantilla).HasColumnName("PLANTILLA").HasMaxLength(100).IsUnicode(false);
+            entity.Property(e => e.TipoEntidad).HasColumnName("TIPO_ENTIDAD").HasMaxLength(50).IsUnicode(false);
+            // ID_ENTIDAD si es numeric(18,0): apunta a PKs legadas.
+            entity.Property(e => e.IdEntidad).HasColumnName("ID_ENTIDAD");
+            entity.Property(e => e.Estado).HasColumnName("ESTADO").HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.Intentos).HasColumnName("INTENTOS");
+            entity.Property(e => e.ErrorMensaje).HasColumnName("ERROR_MENSAJE").HasMaxLength(2000);
+            entity.Property(e => e.FechaCreacion).HasColumnName("FECHA_CREACION");
+            entity.Property(e => e.FechaUltimoIntento).HasColumnName("FECHA_ULTIMO_INTENTO");
+            entity.Property(e => e.FechaEnvio).HasColumnName("FECHA_ENVIO");
+            entity.Property(e => e.UsuarioOrigen).HasColumnName("USUARIO_ORIGEN").HasMaxLength(256);
         });
 
         // ENTIDAD_SEGURIDAD_SOCIAL
