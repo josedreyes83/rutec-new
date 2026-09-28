@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RUTEC.Application.DTOs;
 using RUTEC.Application.Services;
+using RUTEC.Domain.Constants;
 using RUTEC.Domain.Entities;
 using RUTEC.Infrastructure.Data;
 
@@ -35,19 +36,16 @@ public class ContratoServiceImpl : IContratoService
         var c = await _db.Contratos.FirstOrDefaultAsync(c => c.Id == id);
         if (c == null) return null;
 
-        var codigos = await _db.CodigosReferencia.ToListAsync();
+        var refs = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
         var deptos = await _db.Departamentos.ToListAsync();
         var mpios = await _db.Municipios.ToListAsync();
         var ocupaciones = await _db.OcupacionesLaborales.ToListAsync();
         var entidades = await _db.EntidadesSeguridadSocial.ToListAsync();
 
-        string? Ref(string? codigo, string grupo) =>
-            codigos.FirstOrDefault(r => r.Codigo == codigo && r.Grupo == grupo)?.Nombre;
-
         return new ContratoDetailDto(
             c.Id, c.IdMigranteTrabajador ?? 0, c.IdOrganizacion,
             c.DenominacionContrato, c.TipoContratoTrabajador,
-            Ref(c.TipoContratoTrabajador, "CODTIPOCONTRATO"),
+            refs.Describir(c.TipoContratoTrabajador, GruposCodigoReferencia.TipoContrato),
             c.CargoTrabajador, c.VigenciaDesde, c.VigenciaHasta,
             c.CodigoOcupacionLaboral1, ocupaciones.FirstOrDefault(o => o.CodigoOcupacionLaboral == c.CodigoOcupacionLaboral1)?.NombreOcupacionLaboral,
             c.CodigoOcupacionLaboral2, ocupaciones.FirstOrDefault(o => o.CodigoOcupacionLaboral == c.CodigoOcupacionLaboral2)?.NombreOcupacionLaboral,

@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContratosService } from '../../../core/services/contratos.service';
 import { SharedService } from '../../../core/services/shared.service';
+import { GRUPOS } from '../../../core/constants/grupos-codigo-referencia';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -42,7 +43,7 @@ import { ButtonModule } from 'primeng/button';
           formControlName="tipoContratoTrabajador"
           [options]="tiposContrato()"
           optionLabel="nombre"
-          optionValue="codigo"
+          optionValue="id"
           placeholder="Seleccione tipo"
         />
       </div>
@@ -262,7 +263,8 @@ export class ContratoFormComponent implements OnInit {
 
   form: FormGroup = this.fb.group({
     denominacionContrato: ['', Validators.required],
-    tipoContratoTrabajador: ['', Validators.required],
+    // Guarda el ID_COD_REFERENCIA_NUM de CODTIPOCONTRATO, no el codigo corto.
+    tipoContratoTrabajador: [null as number | null, Validators.required],
     cargoTrabajador: ['', Validators.required],
     profesion: [''],
     vigenciaDesde: [null as Date | null, Validators.required],
@@ -292,7 +294,7 @@ export class ContratoFormComponent implements OnInit {
   }
 
   private cargarDropdowns() {
-    this.sharedService.getCodigosReferencia('TIPO_CONTRATO').subscribe(data => this.tiposContrato.set(data));
+    this.sharedService.getCodigosReferencia(GRUPOS.TIPO_CONTRATO).subscribe(data => this.tiposContrato.set(data));
     this.sharedService.getDepartamentos().subscribe(data => this.departamentos.set(data));
     this.sharedService.getOcupacionesLaborales(1).subscribe(data => this.ocupaciones1.set(data));
     this.sharedService.getEntidadesSeguridadSocial('PENSION').subscribe(data => this.entidadesPension.set(data));
@@ -305,7 +307,8 @@ export class ContratoFormComponent implements OnInit {
     this.contratosService.getById(this.trabajadorId, this.contratoId).subscribe(contrato => {
       this.form.patchValue({
         denominacionContrato: contrato.denominacionContrato,
-        tipoContratoTrabajador: contrato.tipoContratoTrabajador,
+        tipoContratoTrabajador: contrato.tipoContratoTrabajador != null
+          ? Number(contrato.tipoContratoTrabajador) : null,
         cargoTrabajador: contrato.cargoTrabajador,
         profesion: contrato.profesion,
         vigenciaDesde: contrato.vigenciaDesde ? new Date(contrato.vigenciaDesde) : null,
@@ -352,7 +355,12 @@ export class ContratoFormComponent implements OnInit {
   guardar() {
     if (this.form.invalid) return;
     this.saving.set(true);
-    const data = this.form.value;
+    const val = this.form.value;
+    const data = {
+      ...val,
+      tipoContratoTrabajador: val.tipoContratoTrabajador != null
+        ? String(val.tipoContratoTrabajador) : null
+    };
 
     const obs = this.editMode()
       ? this.contratosService.modificar(this.trabajadorId, this.contratoId, data)

@@ -4,6 +4,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using RUTEC.Application.DTOs;
 using RUTEC.Application.Services;
+using RUTEC.Domain.Constants;
 using RUTEC.Infrastructure.Data;
 
 namespace RUTEC.Infrastructure.Services;
@@ -27,7 +28,7 @@ public class CertificadoServiceImpl : ICertificadoService
         if (trabajador == null) return [];
 
         var paises = await _db.Paises.ToListAsync();
-        var codigos = await _db.CodigosReferencia.ToListAsync();
+        var refs = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
 
         var paisNacimiento = paises.FirstOrDefault(p => p.Codigo == trabajador.CodigoPaisNacimiento);
         var esCAN = PaisesComunidadAndina.Contains(trabajador.CodigoPaisNacimiento ?? "");
@@ -51,8 +52,7 @@ public class CertificadoServiceImpl : ICertificadoService
 
         return contratos.Select(c =>
         {
-            var tipoContratoDesc = codigos
-                .FirstOrDefault(r => r.Codigo == c.TipoContratoTrabajador && r.Grupo == "CODTIPOCONTRATO")?.Nombre;
+            var tipoContratoDesc = refs.Describir(c.TipoContratoTrabajador, GruposCodigoReferencia.TipoContrato);
 
             string? orgName = null;
             if (c.IdOrganizacion.HasValue)
@@ -79,12 +79,11 @@ public class CertificadoServiceImpl : ICertificadoService
 
         var t = contrato.MigranteTrabajador;
         var paises = await _db.Paises.ToListAsync();
-        var codigos = await _db.CodigosReferencia.ToListAsync();
+        var refs = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
 
         var paisNacimiento = paises.FirstOrDefault(p => p.Codigo == t.CodigoPaisNacimiento);
         var esCAN = PaisesComunidadAndina.Contains(t.CodigoPaisNacimiento ?? "");
-        var tipoContratoDesc = codigos
-            .FirstOrDefault(r => r.Codigo == contrato.TipoContratoTrabajador && r.Grupo == "CODTIPOCONTRATO")?.Nombre;
+        var tipoContratoDesc = refs.Describir(contrato.TipoContratoTrabajador, GruposCodigoReferencia.TipoContrato);
 
         string? orgName = null;
         if (contrato.IdOrganizacion.HasValue)

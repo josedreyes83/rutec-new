@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RUTEC.Application.DTOs;
 using RUTEC.Application.Services;
+using RUTEC.Domain.Constants;
 using RUTEC.Domain.Entities;
 using RUTEC.Infrastructure.Data;
 
@@ -247,23 +248,13 @@ public class CalidadServiceImpl : ICalidadService
         var orgNames = await GetOrgNamesAsync(orgIds);
 
         // Get motivos codes for resolving MOTIVO_ACLARACION
-        var motivosCodes = await _db.CodigosReferencia
-            .Where(c => c.Grupo == "ACLARACION")
-            .ToListAsync();
+        var motivosRefs = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
 
         string? ResolveMotivos(string? motivoAclaracion)
         {
             if (string.IsNullOrEmpty(motivoAclaracion)) return null;
-            var ids = motivoAclaracion.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim());
-            var nombres = ids.Select(id =>
-            {
-                var byCodigo = motivosCodes.FirstOrDefault(c => c.Codigo == id)?.Nombre;
-                if (byCodigo != null) return byCodigo;
-                if (long.TryParse(id, out var numId))
-                    return motivosCodes.FirstOrDefault(c => c.Id == numId)?.Nombre ?? id;
-                return id;
-            });
+            var nombres = motivoAclaracion.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => motivosRefs.Describir(s.Trim(), GruposCodigoReferencia.Aclaracion));
             return string.Join(", ", nombres);
         }
 
@@ -316,9 +307,7 @@ public class CalidadServiceImpl : ICalidadService
             .Where(t => trabajadorIds.Contains(t.Id))
             .ToListAsync();
 
-        var codigos = await _db.CodigosReferencia
-            .Where(c => c.Grupo == "ACLARACION")
-            .ToListAsync();
+        var refs = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
 
         var orgIds = contratos.Where(c => c.IdOrganizacion.HasValue).Select(c => c.IdOrganizacion!.Value).Distinct().ToList();
         var orgNames = await GetOrgNamesAsync(orgIds);
@@ -329,7 +318,7 @@ public class CalidadServiceImpl : ICalidadService
             var trabajador = contrato != null ? trabajadores.FirstOrDefault(t => t.Id == contrato.IdMigranteTrabajador) : null;
             var motivos = string.IsNullOrEmpty(v.MotivoAclaracion) ? "" :
                 string.Join(", ", v.MotivoAclaracion.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(m => codigos.FirstOrDefault(c => c.Codigo == m.Trim())?.Nombre ?? m.Trim()));
+                    .Select(m => refs.Describir(m.Trim(), GruposCodigoReferencia.Aclaracion)));
 
             // VERIFICADO: aclaracion is null = pending, can be removed
             var verificado = v.Aclaracion == null;
@@ -425,25 +414,12 @@ public class CalidadServiceImpl : ICalidadService
         object? trabajadorData = null;
         if (trabajador != null)
         {
-            var codigos = await _db.CodigosReferencia.ToListAsync();
+            var refs = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
             var paises = await _db.Paises.ToListAsync();
 
-            string? ResolveRef(string? value, string grupo)
-            {
-                if (string.IsNullOrEmpty(value)) return value;
-                // Try by Id first (numeric values like "81")
-                if (long.TryParse(value, out var id))
-                {
-                    var byId = codigos.FirstOrDefault(c => c.Id == id);
-                    if (byId != null) return byId.Nombre;
-                }
-                // Try by Codigo + Grupo
-                return codigos.FirstOrDefault(c => c.Codigo == value && c.Grupo == grupo)?.Nombre ?? value;
-            }
-
-            var tipoDoc = ResolveRef(trabajador.TipoDocumento, "CODTIPODOCID");
-            var genero = ResolveRef(trabajador.CodigoGenero, "CODGENERO");
-            var estadoCivil = ResolveRef(trabajador.CodigoEstadoCivil, "CODESTADOCIVIL");
+            var tipoDoc = refs.Describir(trabajador.TipoDocumento, GruposCodigoReferencia.TipoDocumento);
+            var genero = refs.Describir(trabajador.CodigoGenero, GruposCodigoReferencia.Genero);
+            var estadoCivil = refs.Describir(trabajador.CodigoEstadoCivil, GruposCodigoReferencia.EstadoCivil);
             var paisNacimiento = paises.FirstOrDefault(p => p.Codigo == trabajador.CodigoPaisNacimiento)?.Nombre
                 ?? trabajador.CodigoPaisNacimiento;
             var paisCiudadania = paises.FirstOrDefault(p => p.Codigo == trabajador.CodigoPaisCiudadania)?.Nombre
@@ -470,14 +446,14 @@ public class CalidadServiceImpl : ICalidadService
             ? await _db.ContratosIdiomas.Where(i => i.IdTrabajadorMigrante == trabajador.Id).ToListAsync()
             : new List<ContratoIdioma>();
 
-        var codigosRef = await _db.CodigosReferencia.ToListAsync();
+        var codigosRef = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
 
         var idiomas = idiomasRaw.Select(i => new
         {
-            idioma = codigosRef.FirstOrDefault(c => c.Id == i.CodigoIdioma)?.Nombre ?? i.CodigoIdioma?.ToString(),
-            nivelHablado = codigosRef.FirstOrDefault(c => c.Id == i.CodigoNivelHablado)?.Nombre ?? i.CodigoNivelHablado?.ToString(),
-            nivelLeido = codigosRef.FirstOrDefault(c => c.Id == i.CodigoNivelLeido)?.Nombre ?? i.CodigoNivelLeido?.ToString(),
-            nivelEscrito = codigosRef.FirstOrDefault(c => c.Id == i.CodigoNivelEscrito)?.Nombre ?? i.CodigoNivelEscrito?.ToString()
+            idioma = codigosRef.Describir(i.CodigoIdioma, GruposCodigoReferencia.TipoIdioma),
+            nivelHablado = codigosRef.Describir(i.CodigoNivelHablado, GruposCodigoReferencia.CalificacionIdioma),
+            nivelLeido = codigosRef.Describir(i.CodigoNivelLeido, GruposCodigoReferencia.CalificacionIdioma),
+            nivelEscrito = codigosRef.Describir(i.CodigoNivelEscrito, GruposCodigoReferencia.CalificacionIdioma)
         }).ToList();
 
         // === Niveles educativos ===
@@ -487,7 +463,7 @@ public class CalidadServiceImpl : ICalidadService
 
         var niveles = nivelesRaw.Select(n => new
         {
-            nivelEducativo = codigosRef.FirstOrDefault(c => c.Id == n.CodigoNivelEducativo)?.Nombre ?? n.CodigoNivelEducativo?.ToString(),
+            nivelEducativo = codigosRef.Describir(n.CodigoNivelEducativo, GruposCodigoReferencia.NivelEducativo),
             semestresCursados = n.SemestresCursados,
             obtuvoTitulo = n.ObtuvoTituloEducativo,
             titulo = n.TituloNivelEducativo
@@ -500,14 +476,7 @@ public class CalidadServiceImpl : ICalidadService
         var municipios = await _db.Municipios.ToListAsync();
 
         // tipoContrato might be an Id (numeric) or a Codigo
-        string? tipoContrato = contrato.TipoContratoTrabajador;
-        if (!string.IsNullOrEmpty(tipoContrato))
-        {
-            if (long.TryParse(tipoContrato, out var tcId))
-                tipoContrato = codigosRef.FirstOrDefault(c => c.Id == tcId)?.Nombre ?? tipoContrato;
-            else
-                tipoContrato = codigosRef.FirstOrDefault(c => c.Codigo == tipoContrato && c.Grupo == "CODTIPOCONTRATO")?.Nombre ?? tipoContrato;
-        }
+        var tipoContrato = codigosRef.Describir(contrato.TipoContratoTrabajador, GruposCodigoReferencia.TipoContrato);
         var ocupacion1 = ocupaciones.FirstOrDefault(o => o.CodigoOcupacionLaboral == contrato.CodigoOcupacionLaboral1)?.NombreOcupacionLaboral;
         var ocupacion2 = ocupaciones.FirstOrDefault(o => o.CodigoOcupacionLaboral == contrato.CodigoOcupacionLaboral2)?.NombreOcupacionLaboral;
         var ocupacion3 = ocupaciones.FirstOrDefault(o => o.CodigoOcupacionLaboral == contrato.CodigoOcupacionLaboral3)?.NombreOcupacionLaboral;
@@ -631,7 +600,7 @@ public class CalidadServiceImpl : ICalidadService
     public async Task<List<object>> GetMotivosAclaracionAsync()
     {
         var motivos = await _db.CodigosReferencia
-            .Where(c => c.Grupo == "ACLARACION")
+            .Where(c => c.Grupo == GruposCodigoReferencia.Aclaracion)
             .OrderBy(c => c.OrdenPresentacion)
             .Select(c => (object)new { label = c.Nombre, value = c.Codigo })
             .ToListAsync();

@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { TrabajadoresService } from '../../../core/services/trabajadores.service';
 import { SharedService } from '../../../core/services/shared.service';
 import { CodigoReferencia } from '../../../core/models/rutec.models';
+import { GRUPOS } from '../../../core/constants/grupos-codigo-referencia';
 import { StepperModule } from 'primeng/stepper';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
@@ -56,11 +57,11 @@ import { ButtonModule } from 'primeng/button';
               </div>
               <div class="field">
                 <label>Genero *</label>
-                <p-select [options]="generos()" optionLabel="nombre" optionValue="codigo" [formControl]="form.controls.codigoGenero" placeholder="Seleccione..." />
+                <p-select [options]="generos()" optionLabel="nombre" optionValue="id" [formControl]="form.controls.codigoGenero" placeholder="Seleccione..." />
               </div>
               <div class="field">
                 <label>Estado Civil *</label>
-                <p-select [options]="estadosCiviles()" optionLabel="nombre" optionValue="codigo" [formControl]="form.controls.codigoEstadoCivil" placeholder="Seleccione..." />
+                <p-select [options]="estadosCiviles()" optionLabel="nombre" optionValue="id" [formControl]="form.controls.codigoEstadoCivil" placeholder="Seleccione..." />
               </div>
               <div class="field">
                 <label>Fecha de Nacimiento *</label>
@@ -142,19 +143,19 @@ import { ButtonModule } from 'primeng/button';
               <div class="idioma-row">
                 <div class="field">
                   <label>Idioma</label>
-                  <p-select [options]="idiomasRef()" optionLabel="nombre" optionValue="codigo" [formControl]="$any(idioma.get('idioma'))" placeholder="Seleccione..." />
+                  <p-select [options]="idiomasRef()" optionLabel="nombre" optionValue="id" [formControl]="$any(idioma.get('idioma'))" placeholder="Seleccione..." />
                 </div>
                 <div class="field">
                   <label>Nivel Hablado</label>
-                  <p-select [options]="nivelesIdioma()" optionLabel="nombre" optionValue="codigo" [formControl]="$any(idioma.get('nivelHablado'))" placeholder="Seleccione..." />
+                  <p-select [options]="nivelesIdioma()" optionLabel="nombre" optionValue="id" [formControl]="$any(idioma.get('nivelHablado'))" placeholder="Seleccione..." />
                 </div>
                 <div class="field">
                   <label>Nivel Escrito</label>
-                  <p-select [options]="nivelesIdioma()" optionLabel="nombre" optionValue="codigo" [formControl]="$any(idioma.get('nivelEscrito'))" placeholder="Seleccione..." />
+                  <p-select [options]="nivelesIdioma()" optionLabel="nombre" optionValue="id" [formControl]="$any(idioma.get('nivelEscrito'))" placeholder="Seleccione..." />
                 </div>
                 <div class="field">
                   <label>Nivel Leido</label>
-                  <p-select [options]="nivelesIdioma()" optionLabel="nombre" optionValue="codigo" [formControl]="$any(idioma.get('nivelLeido'))" placeholder="Seleccione..." />
+                  <p-select [options]="nivelesIdioma()" optionLabel="nombre" optionValue="id" [formControl]="$any(idioma.get('nivelLeido'))" placeholder="Seleccione..." />
                 </div>
                 <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [text]="true" (click)="eliminarIdioma(i)" />
               </div>
@@ -180,7 +181,7 @@ import { ButtonModule } from 'primeng/button';
               <div class="edu-row">
                 <div class="field">
                   <label>Nivel Educativo</label>
-                  <p-select [options]="nivelesEducativos()" optionLabel="nombre" optionValue="codigo" [formControl]="$any(edu.get('nivelEducativo'))" placeholder="Seleccione..." />
+                  <p-select [options]="nivelesEducativos()" optionLabel="nombre" optionValue="id" [formControl]="$any(edu.get('nivelEducativo'))" placeholder="Seleccione..." />
                 </div>
                 <div class="field">
                   <label>Semestres Cursados</label>
@@ -275,8 +276,9 @@ export class TrabajadorRegistroWizardComponent implements OnInit {
     segundoNombre: [''],
     primerApellido: ['', Validators.required],
     segundoApellido: [''],
-    codigoGenero: ['', Validators.required],
-    codigoEstadoCivil: ['', Validators.required],
+    // Genero y estado civil guardan el ID_COD_REFERENCIA_NUM, no el codigo corto.
+    codigoGenero: [null as number | null, Validators.required],
+    codigoEstadoCivil: [null as number | null, Validators.required],
     fechaNacimiento: [null as Date | null, Validators.required],
     tipoDocumento: [''],
     numeroCedulaExtranjeria: [''],
@@ -293,13 +295,13 @@ export class TrabajadorRegistroWizardComponent implements OnInit {
   get educacionArray(): FormArray { return this.form.get('nivelesEducativos') as FormArray; }
 
   ngOnInit() {
-    this.sharedService.getCodigosReferencia('GENERO').subscribe(d => this.generos.set(d));
-    this.sharedService.getCodigosReferencia('ESTADO_CIVIL').subscribe(d => this.estadosCiviles.set(d));
-    this.sharedService.getCodigosReferencia('TIPO_DOCUMENTO').subscribe(d => this.tiposDocumento.set(d));
-    this.sharedService.getCodigosReferencia('TIPO_VISA').subscribe(d => this.tiposVisa.set(d));
-    this.sharedService.getCodigosReferencia('IDIOMA').subscribe(d => this.idiomasRef.set(d));
-    this.sharedService.getCodigosReferencia('NIVEL_IDIOMA').subscribe(d => this.nivelesIdioma.set(d));
-    this.sharedService.getCodigosReferencia('NIVEL_EDUCATIVO').subscribe(d => this.nivelesEducativos.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.GENERO).subscribe(d => this.generos.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.ESTADO_CIVIL).subscribe(d => this.estadosCiviles.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.TIPO_DOCUMENTO).subscribe(d => this.tiposDocumento.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.TIPO_VISA).subscribe(d => this.tiposVisa.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.TIPO_IDIOMA).subscribe(d => this.idiomasRef.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.CALIFICACION_IDIOMA).subscribe(d => this.nivelesIdioma.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.NIVEL_EDUCATIVO).subscribe(d => this.nivelesEducativos.set(d));
     this.sharedService.getPaises().subscribe(d => this.paises.set(d));
   }
 
@@ -310,10 +312,10 @@ export class TrabajadorRegistroWizardComponent implements OnInit {
 
   agregarIdioma() {
     this.idiomasArray.push(this.fb.group({
-      idioma: [''],
-      nivelHablado: [''],
-      nivelEscrito: [''],
-      nivelLeido: ['']
+      idioma: [null as number | null],
+      nivelHablado: [null as number | null],
+      nivelEscrito: [null as number | null],
+      nivelLeido: [null as number | null]
     }));
   }
 
@@ -321,8 +323,8 @@ export class TrabajadorRegistroWizardComponent implements OnInit {
 
   agregarEducacion() {
     this.educacionArray.push(this.fb.group({
-      nivelEducativo: [''],
-      semestresCursados: [null],
+      nivelEducativo: [null as number | null],
+      semestresCursados: [null as number | null],
       obtuvoTitulo: [''],
       titulo: ['']
     }));
@@ -335,9 +337,29 @@ export class TrabajadorRegistroWizardComponent implements OnInit {
     this.errorMsg.set(null);
 
     const val = this.form.getRawValue();
+    // Los nombres de los arreglos deben coincidir con CrearIdiomaDto y
+    // CrearNivelEducativoDto: la clave del select no es la del DTO.
     const payload = {
       ...val,
-      fechaNacimiento: val.fechaNacimiento ? (val.fechaNacimiento as Date).toISOString() : null
+      fechaNacimiento: val.fechaNacimiento ? (val.fechaNacimiento as Date).toISOString() : null,
+      codigoGenero: val.codigoGenero != null ? String(val.codigoGenero) : null,
+      codigoEstadoCivil: val.codigoEstadoCivil != null ? String(val.codigoEstadoCivil) : null,
+      idiomas: val.idiomas
+        .filter((i: any) => i.idioma != null)
+        .map((i: any) => ({
+          codigoIdioma: i.idioma,
+          codigoNivelHablado: i.nivelHablado,
+          codigoNivelEscrito: i.nivelEscrito,
+          codigoNivelLeido: i.nivelLeido
+        })),
+      nivelesEducativos: val.nivelesEducativos
+        .filter((n: any) => n.nivelEducativo != null)
+        .map((n: any) => ({
+          codigoNivelEducativo: n.nivelEducativo,
+          semestresCursados: n.semestresCursados,
+          obtuvoTitulo: n.obtuvoTitulo,
+          titulo: n.titulo
+        }))
     };
 
     this.trabajadoresService.crear(payload).subscribe({

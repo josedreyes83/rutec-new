@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TrabajadoresService } from '../../../core/services/trabajadores.service';
 import { SharedService } from '../../../core/services/shared.service';
 import { TrabajadorDetail, CodigoReferencia } from '../../../core/models/rutec.models';
+import { GRUPOS } from '../../../core/constants/grupos-codigo-referencia';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -55,11 +56,11 @@ import { ButtonModule } from 'primeng/button';
           </div>
           <div class="field">
             <label>Genero *</label>
-            <p-select [options]="generos()" optionLabel="nombre" optionValue="codigo" formControlName="codigoGenero" placeholder="Seleccione..." />
+            <p-select [options]="generos()" optionLabel="nombre" optionValue="id" formControlName="codigoGenero" placeholder="Seleccione..." />
           </div>
           <div class="field">
             <label>Estado Civil *</label>
-            <p-select [options]="estadosCiviles()" optionLabel="nombre" optionValue="codigo" formControlName="codigoEstadoCivil" placeholder="Seleccione..." />
+            <p-select [options]="estadosCiviles()" optionLabel="nombre" optionValue="id" formControlName="codigoEstadoCivil" placeholder="Seleccione..." />
           </div>
           <div class="field">
             <label>Fecha de Nacimiento *</label>
@@ -144,8 +145,9 @@ export class TrabajadorEditarComponent implements OnInit {
     segundoNombre: [''],
     primerApellido: ['', Validators.required],
     segundoApellido: [''],
-    codigoGenero: ['', Validators.required],
-    codigoEstadoCivil: ['', Validators.required],
+    // Genero y estado civil guardan el ID_COD_REFERENCIA_NUM, no el codigo corto.
+    codigoGenero: [null as number | null, Validators.required],
+    codigoEstadoCivil: [null as number | null, Validators.required],
     fechaNacimiento: [null as Date | null, Validators.required],
     codigoPaisNacimiento: [''],
     codigoPaisCiudadania: [''],
@@ -155,9 +157,9 @@ export class TrabajadorEditarComponent implements OnInit {
   ngOnInit() {
     this.trabajadorId = Number(this.route.snapshot.paramMap.get('id'));
 
-    this.sharedService.getCodigosReferencia('GENERO').subscribe(d => this.generos.set(d));
-    this.sharedService.getCodigosReferencia('ESTADO_CIVIL').subscribe(d => this.estadosCiviles.set(d));
-    this.sharedService.getCodigosReferencia('TIPO_VISA').subscribe(d => this.tiposVisa.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.GENERO).subscribe(d => this.generos.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.ESTADO_CIVIL).subscribe(d => this.estadosCiviles.set(d));
+    this.sharedService.getCodigosReferencia(GRUPOS.TIPO_VISA).subscribe(d => this.tiposVisa.set(d));
     this.sharedService.getPaises().subscribe(d => this.paises.set(d));
 
     this.trabajadoresService.getById(this.trabajadorId).subscribe({
@@ -167,8 +169,9 @@ export class TrabajadorEditarComponent implements OnInit {
           segundoNombre: t.segundoNombre,
           primerApellido: t.primerApellido,
           segundoApellido: t.segundoApellido,
-          codigoGenero: t.codigoGenero,
-          codigoEstadoCivil: t.codigoEstadoCivil,
+          // Llegan como texto desde la API; el select compara contra el id numerico.
+          codigoGenero: t.codigoGenero != null ? Number(t.codigoGenero) : null,
+          codigoEstadoCivil: t.codigoEstadoCivil != null ? Number(t.codigoEstadoCivil) : null,
           fechaNacimiento: t.fechaNacimiento ? new Date(t.fechaNacimiento) : null,
           codigoPaisNacimiento: t.codigoPaisNacimiento,
           codigoPaisCiudadania: t.codigoPaisCiudadania,
@@ -192,7 +195,9 @@ export class TrabajadorEditarComponent implements OnInit {
     const val = this.form.getRawValue();
     const payload = {
       ...val,
-      fechaNacimiento: val.fechaNacimiento ? (val.fechaNacimiento as Date).toISOString() : null
+      fechaNacimiento: val.fechaNacimiento ? (val.fechaNacimiento as Date).toISOString() : null,
+      codigoGenero: val.codigoGenero != null ? String(val.codigoGenero) : null,
+      codigoEstadoCivil: val.codigoEstadoCivil != null ? String(val.codigoEstadoCivil) : null
     };
 
     this.trabajadoresService.modificar(this.trabajadorId, payload).subscribe({

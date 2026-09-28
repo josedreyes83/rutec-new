@@ -2,6 +2,7 @@ using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using RUTEC.Application.DTOs;
 using RUTEC.Application.Services;
+using RUTEC.Domain.Constants;
 using RUTEC.Infrastructure.Data;
 
 namespace RUTEC.Infrastructure.Services;
@@ -36,9 +37,7 @@ public class ReporteServiceImpl : IReporteService
 
     public async Task<List<ReporteItemDto>> GetPorGeneroAsync()
     {
-        var codigos = await _db.CodigosReferencia
-            .Where(c => c.Grupo == "CODGENERO")
-            .ToListAsync();
+        var refs = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
 
         var grupos = await _db.MigrantesTrabajadores
             .GroupBy(t => t.CodigoGenero)
@@ -46,7 +45,7 @@ public class ReporteServiceImpl : IReporteService
             .ToListAsync();
 
         return grupos.Select(g => new ReporteItemDto(
-            codigos.FirstOrDefault(c => c.Codigo == g.Codigo)?.Nombre ?? g.Codigo ?? "Sin especificar",
+            refs.Etiquetar(g.Codigo, GruposCodigoReferencia.Genero),
             g.Cantidad
         )).OrderByDescending(r => r.Cantidad).ToList();
     }
@@ -68,9 +67,7 @@ public class ReporteServiceImpl : IReporteService
 
     public async Task<List<ReporteItemDto>> GetPorNivelAcademicoAsync()
     {
-        var codigos = await _db.CodigosReferencia
-            .Where(c => c.Grupo == "TIPONIV_EDUCATIVO")
-            .ToListAsync();
+        var refs = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
 
         var grupos = await _db.ContratosNivelesEducativos
             .GroupBy(n => n.CodigoNivelEducativo)
@@ -78,7 +75,7 @@ public class ReporteServiceImpl : IReporteService
             .ToListAsync();
 
         return grupos.Select(g => new ReporteItemDto(
-            codigos.FirstOrDefault(c => c.Codigo == g.Codigo.ToString())?.Nombre ?? g.Codigo?.ToString() ?? "Sin especificar",
+            refs.Etiquetar(g.Codigo, GruposCodigoReferencia.NivelEducativo),
             g.Cantidad
         )).OrderByDescending(r => r.Cantidad).ToList();
     }
@@ -294,31 +291,8 @@ public class ReporteServiceImpl : IReporteService
 
         // Lookup tables
         var codigos = await _db.CodigosReferencia.ToListAsync();
+        var refs = new CodigoReferenciaResolver(codigos);
         var paises = await _db.Paises.ToListAsync();
-
-        string ResolveCodigo(string? codigo, string grupo)
-        {
-            if (string.IsNullOrEmpty(codigo)) return "Sin especificar";
-            // Try by Codigo (string match)
-            var match = codigos.FirstOrDefault(c => c.Grupo == grupo && c.Codigo == codigo);
-            if (match != null) return match.Nombre ?? codigo;
-            // Try by Id (numeric match)
-            if (long.TryParse(codigo, out var id))
-            {
-                match = codigos.FirstOrDefault(c => c.Grupo == grupo && c.Id == id);
-                if (match != null) return match.Nombre ?? codigo;
-            }
-            return codigo;
-        }
-
-        string ResolveCodigoById(long? id, string grupo)
-        {
-            if (!id.HasValue) return "Sin especificar";
-            var match = codigos.FirstOrDefault(c => c.Grupo == grupo && c.Id == id.Value);
-            if (match != null) return match.Nombre ?? id.Value.ToString();
-            match = codigos.FirstOrDefault(c => c.Grupo == grupo && c.Codigo == id.Value.ToString());
-            return match?.Nombre ?? id.Value.ToString();
-        }
 
         // Por Genero
         var gruposGenero = await trabajadoresQuery
@@ -326,7 +300,7 @@ public class ReporteServiceImpl : IReporteService
             .Select(g => new { Codigo = g.Key, Cantidad = g.Count() })
             .ToListAsync();
         var porGenero = gruposGenero
-            .Select(g => new { label = ResolveCodigo(g.Codigo, "CODGENERO"), value = g.Cantidad })
+            .Select(g => new { label = refs.Etiquetar(g.Codigo, GruposCodigoReferencia.Genero), value = g.Cantidad })
             .OrderByDescending(x => x.value).ToList();
 
         // Por Estado Civil — CodigoEstadoCivil stores ID_COD_REFERENCIA_NUM as string
@@ -335,7 +309,7 @@ public class ReporteServiceImpl : IReporteService
             .Select(g => new { Codigo = g.Key, Cantidad = g.Count() })
             .ToListAsync();
         var porEstadoCivil = gruposEstadoCivil
-            .Select(g => new { label = ResolveCodigo(g.Codigo, "TIPOESTADOCIVIL"), value = g.Cantidad })
+            .Select(g => new { label = refs.Etiquetar(g.Codigo, GruposCodigoReferencia.EstadoCivil), value = g.Cantidad })
             .OrderByDescending(x => x.value).ToList();
 
         // Por Tipo Documento
@@ -344,7 +318,7 @@ public class ReporteServiceImpl : IReporteService
             .Select(g => new { Codigo = g.Key, Cantidad = g.Count() })
             .ToListAsync();
         var porTipoDocumento = gruposTipoDoc
-            .Select(g => new { label = ResolveCodigo(g.Codigo, "CODTIPODOCID"), value = g.Cantidad })
+            .Select(g => new { label = refs.Etiquetar(g.Codigo, GruposCodigoReferencia.TipoDocumento), value = g.Cantidad })
             .OrderByDescending(x => x.value).ToList();
 
         // Por Nacionalidad (CodigoPaisCiudadania) top 7
@@ -382,7 +356,7 @@ public class ReporteServiceImpl : IReporteService
             .Select(g => new {
                 label = (g.Codigo == null || g.Codigo == 0)
                     ? "NO REPORTA"
-                    : ResolveCodigoById(g.Codigo, "TIPOVISA"),
+                    : refs.Etiquetar(g.Codigo, GruposCodigoReferencia.TipoVisa),
                 value = g.Cantidad
             })
             .OrderByDescending(x => x.value)
@@ -448,10 +422,7 @@ public class ReporteServiceImpl : IReporteService
             if (string.IsNullOrEmpty(motivo)) return "Sin motivo";
             var parts = motivo.Split(':');
             if (parts.Length == 2)
-            {
-                var match = codigos.FirstOrDefault(c => c.Grupo == parts[0] && c.Codigo == parts[1]);
-                if (match != null) return match.Nombre ?? motivo;
-            }
+                return refs.Describir(parts[1], parts[0]) ?? motivo;
             return motivo;
         }
 
@@ -498,7 +469,7 @@ public class ReporteServiceImpl : IReporteService
         var tiposContratoList = contratosActivos2
             .GroupBy(c => c.TipoContratoTrabajador)
             .Select(g => new {
-                label = ResolveCodigo(g.Key, "CODTIPOCONTRATO"),
+                label = refs.Etiquetar(g.Key, GruposCodigoReferencia.TipoContrato),
                 value = g.Count()
             })
             .OrderByDescending(x => x.value)

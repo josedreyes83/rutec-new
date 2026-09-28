@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using RUTEC.Application.Common.Models;
 using RUTEC.Application.DTOs;
 using RUTEC.Application.Services;
+using RUTEC.Domain.Constants;
 using RUTEC.Domain.Entities;
 using RUTEC.Infrastructure.Data;
 
@@ -46,11 +47,9 @@ public class TrabajadorServiceImpl : ITrabajadorService
 
         if (t == null) return null;
 
-        var codigos = await _db.CodigosReferencia.ToListAsync();
+        var refs = new CodigoReferenciaResolver(await _db.CodigosReferencia.ToListAsync());
         var paises = await _db.Paises.ToListAsync();
 
-        string? Ref(string? codigo, string grupo) =>
-            codigos.FirstOrDefault(c => c.Codigo == codigo && c.Grupo == grupo)?.Nombre;
         string? PaisNombre(string? codigo) =>
             paises.FirstOrDefault(p => p.Codigo == codigo)?.Nombre;
 
@@ -60,23 +59,23 @@ public class TrabajadorServiceImpl : ITrabajadorService
             t.Id, t.IdOrganizacion, t.NumeroCedulaExtranjeria,
             t.NumeroPasaporte,
             t.PrimerNombre, t.SegundoNombre, t.PrimerApellido, t.SegundoApellido,
-            t.CodigoGenero, Ref(t.CodigoGenero, "CODGENERO"),
-            t.CodigoEstadoCivil, Ref(t.CodigoEstadoCivil, "TIPOESTADOCIVIL"),
+            t.CodigoGenero, refs.Describir(t.CodigoGenero, GruposCodigoReferencia.Genero),
+            t.CodigoEstadoCivil, refs.Describir(t.CodigoEstadoCivil, GruposCodigoReferencia.EstadoCivil),
             t.FechaNacimiento,
             t.CodigoPaisNacimiento, PaisNombre(t.CodigoPaisNacimiento),
             t.CodigoPaisCiudadania, PaisNombre(t.CodigoPaisCiudadania),
-            t.TipoDeVisa, t.TipoDeVisa.HasValue ? Ref(t.TipoDeVisa.Value.ToString(), "TIPOVISA") : null,
+            t.TipoDeVisa, refs.Describir(t.TipoDeVisa, GruposCodigoReferencia.TipoVisa),
             t.TipoDocumento, t.FechaRegistro,
             t.Idiomas.Select(i => new IdiomaDto(
                 i.Id,
-                Ref(i.CodigoIdioma?.ToString(), "TIPOIDIO"),
-                Ref(i.CodigoNivelHablado?.ToString(), "CODIDINVEL_IDIOMA"),
-                Ref(i.CodigoNivelEscrito?.ToString(), "CODIDINVEL_IDIOMA"),
-                Ref(i.CodigoNivelLeido?.ToString(), "CODIDINVEL_IDIOMA")
+                refs.Describir(i.CodigoIdioma, GruposCodigoReferencia.TipoIdioma),
+                refs.Describir(i.CodigoNivelHablado, GruposCodigoReferencia.CalificacionIdioma),
+                refs.Describir(i.CodigoNivelEscrito, GruposCodigoReferencia.CalificacionIdioma),
+                refs.Describir(i.CodigoNivelLeido, GruposCodigoReferencia.CalificacionIdioma)
             )).ToList(),
             t.NivelesEducativos.Select(n => new NivelEducativoDto(
                 n.Id,
-                Ref(n.CodigoNivelEducativo?.ToString(), "TIPONIV_EDUCATIVO"),
+                refs.Describir(n.CodigoNivelEducativo, GruposCodigoReferencia.NivelEducativo),
                 n.SemestresCursados, n.ObtuvoTituloEducativo, n.TituloNivelEducativo
             )).ToList(),
             cantContratos
